@@ -8,19 +8,33 @@
 
 | File | What it is |
 |---|---|
-| `index.html` | Source of the mobile-first data collection app |
-| `Enoxaparin_Data_Collection.xlsx` | Offline Excel template with the same columns, formulas and summary |
+| `index.html` | The mobile-first web app: one self-contained page |
+| `Enoxaparin_Data_Collection.xlsx` | Offline Excel template with the same columns |
+| `supabase/` | Notes on the database |
 
-## How the app runs
+## How it works
 
-`index.html` is published as a **Claude artifact** (claude.ai). The study data does not live in this repository. Saving entries and exporting to Excel rely on two Claude artifact features:
+- **Database:** Supabase project `enoxaparin-study` (Frankfurt). Study data is stored there, never in this repository.
+- **Sign-in:** email and password. Only emails listed in the `team_members` table can read or write data. Row-level security enforces this on the server.
+- **Excel export:** the button produces a workbook with **Patient Data** and **Administration** sheets.
+- **The key in `index.html`** is Supabase's *publishable* key. It is designed to be public; the data is protected by sign-in plus row-level security.
 
-- `db`: a shared database that the whole study team writes to
-- `downloads`: the Excel export
+## Hosting on GitHub Pages
 
-Because of this, opening `index.html` directly or hosting it on GitHub Pages shows the interface but **cannot save or load data**. To run it as a standalone website, the storage layer would need replacing with a backend such as Supabase.
+1. In the repo, open Settings → Pages.
+2. Set Source to "Deploy from a branch", choose `main` / root, and save.
+3. The app will be served at `https://pharmacist24.github.io/enoxaparin-study/`.
 
-**Access:** share the artifact from its Share menu. Give each data-collecting pharmacist **Contributor** access so they can save entries.
+GitHub Pages on a free account requires a **public** repository. This is safe here: the repo contains only code, and no patient data.
+
+## Adding a pharmacist
+
+Do both steps in the Supabase dashboard:
+
+1. **Authentication → Users → Add user → Create new user.** Enter their email and a temporary password, and tick *Auto Confirm User*.
+2. **Table Editor → `team_members` → Insert row.** Enter their email in lowercase, plus a display name.
+
+To remove someone, delete their `team_members` row. They keep a login but can no longer see any data.
 
 ## Features
 
@@ -31,9 +45,9 @@ Because of this, opening `index.html` directly or hosting it on GitHub Pages sho
   - BID if BMI is 40 or more
   - 1 mg/kg for treatment
 - **Pharmacist judgement:** five criteria, which together give an Appropriate or Inappropriate verdict, plus error types.
-- **Dose observations:** timing delay, missed doses and a 9-item injection-technique checklist with a score.
+- **Dose observations:** timing delay, missed doses and a 9-item injection-technique checklist.
 - **Summary:** results by ward.
-- **Export to Excel:** produces **Patient Data** and **Administration** sheets.
+- **Live updates:** when a colleague saves, everyone's list refreshes.
 
 ## Data protection
 

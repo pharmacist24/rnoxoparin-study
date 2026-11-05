@@ -1,8 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1c5d66">
+<meta name="robots" content="noindex">
 <title>Enoxaparin Study Collector</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%231c5d66%27/%3E%3Cpath d=%27M9 23l14-14M19 7l6 6M14 18l-3-3%27 stroke=%27white%27 stroke-width=%272.5%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
+[hidden]{display:none!important}
+html,body{margin:0}
+img{max-width:100%}
 /* Layout: mobile-first ward tool. Phone = compact header, card lists, bottom tab bar, fixed save bar.
    ≥900px = tabs move under the header, lists go multi-column, forms widen to a grid. */
 :root{
@@ -134,6 +145,15 @@ td.num,.pct{font-family:var(--mono);font-variant-numeric:tabular-nums;white-spac
 .toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:14px;z-index:20;width:max-content;max-width:calc(100% - 32px)}
 body.editing .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 
+/* sign-in */
+body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signed-out #signOut{display:none}
+.login{min-height:calc(100vh - 140px);display:grid;place-items:center;padding-block:24px}
+.login form{width:100%;max-width:380px;display:grid;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px 18px}
+.login h2{margin:0;font-size:20px}
+.login p{margin:0;color:var(--muted);font-size:14px}
+.login .err{color:var(--bad);font-size:14px;min-height:1.2em}
+#signOut{padding:0 12px}
+
 /* ---------- larger screens ---------- */
 @media (min-width:600px){
   .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -164,13 +184,16 @@ body.editing .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 }
 </style>
 
+</head>
+<body class="signed-out">
 <header>
   <div class="wrap top">
     <div class="brand">
       <h1>Enoxaparin Study Collector</h1>
-      <p>General Surgery &amp; Gynecology · pharmacist data collection</p>
+      <p id="whoami">General Surgery &amp; Gynecology · pharmacist data collection</p>
     </div>
     <button class="btn primary icon" id="exportBtn" type="button" aria-label="Export to Excel"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="export-label">Export to Excel</span></button>
+    <button class="btn icon" id="signOut" type="button" aria-label="Sign out" title="Sign out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></button>
   </div>
   <nav class="tabs" role="tablist" aria-label="Sections">
     <button class="tab" role="tab" id="tab-patients" aria-selected="true" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Patients<span class="n" id="nP">0</span></button>
@@ -178,6 +201,18 @@ body.editing .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
     <button class="tab" role="tab" id="tab-summary" aria-selected="false" type="button"><svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>Summary</button>
   </nav>
 </header>
+
+<section class="wrap login" id="v-login">
+  <form id="loginForm" novalidate>
+    <h2>Sign in</h2>
+    <p>For pharmacists on the enoxaparin study team. Your account is created by the study owner.</p>
+    <div class="f"><label for="lgEmail">Email</label><input id="lgEmail" type="email" autocomplete="username" inputmode="email" required></div>
+    <div class="f"><label for="lgPass">Password</label><input id="lgPass" type="password" autocomplete="current-password" required></div>
+    <div class="err" id="lgErr" role="alert"></div>
+    <button class="btn primary" id="lgBtn" type="submit">Sign in</button>
+    <p>Forgot your password? Ask the study owner to reset it.</p>
+  </form>
+</section>
 
 <main class="wrap">
   <div id="status"></div>
@@ -471,10 +506,10 @@ function openPatient(p){
   editing=p||null;fillForm(PF,"p_",p);
   $("p_code").readOnly=!!p;
   $("edTitle").textContent=p?`Patient ${p.code}`:"New patient";
-  $("edMsg").textContent=canWrite?"Shaded fields calculate automatically. The auto check is a screening flag; your judgement columns decide.":"You have view-only access, so changes cannot be saved.";
+  $("edMsg").textContent=canWrite?"Shaded fields calculate automatically. The auto check is a screening flag; your judgement columns decide.":"Your email is not on the study team yet, so changes cannot be saved.";
   $("saveP").disabled=!canWrite;
   const dz=$("delZone");dz.replaceChildren();
-  if(p&&canWrite){const b=el("button",{class:"btn danger",type:"button",text:"Delete"});b.onclick=()=>confirmDel(dz,`Delete ${p.code} and keep its dose records?`,async()=>{await db.doc("patients/"+p._id).delete();toast(`Deleted ${p.code}`);show("patients")});dz.append(b)}
+  if(p&&canWrite){const b=el("button",{class:"btn danger",type:"button",text:"Delete"});b.onclick=()=>confirmDel(dz,`Delete ${p.code} and all its dose records?`,async()=>{await sbDel("patients",p._id);toast(`Deleted ${p.code}`);show("patients")});dz.append(b)}
   updateRx();show("editor");
 }
 function confirmDel(zone,msg,fn){
@@ -487,19 +522,29 @@ function confirmDel(zone,msg,fn){
 $("newPatient").onclick=()=>openPatient(null);
 $("backBtn").onclick=()=>show("patients");$("cancelP").onclick=()=>show("patients");
 const idOf=code=>code.replace(/[^A-Za-z0-9_\-.~:@+]/g,"-").replace(/^\.+$/,"x").slice(0,120);
+function errText(e){
+  if(!e)return"Unknown error";
+  if(e.code==="23505")return"That patient code already exists. Open it from the list.";
+  if(e.code==="42501"||/row-level security/i.test(e.message||""))return"Your email is not on the study team, so this can't be saved.";
+  if(e.code==="23503")return"That patient code doesn't exist. Choose a patient from the list.";
+  if(/fetch|network/i.test(e.message||""))return"No connection. Check the internet and try again.";
+  return e.message||String(e);
+}
+async function sbDel(table,id){const{error}=await sb.from(table).delete().eq("id",id);if(error)throw new Error(errText(error));await loadAll()}
 $("saveP").onclick=async()=>{
   const p=readForm(PF,"p_");
   if(!p.code||!p.ward){toast("Patient code and ward are required");return}
-  if(!db){toast("Saving is unavailable in this view");return}
-  const id=editing?editing._id:idOf(p.code);
+  if(!session){toast("Sign in to save");return}
+  const{code,ward,...rest}=p;
   const btn=$("saveP");btn.disabled=true;
   try{
-    const ref=db.doc("patients/"+id);
-    if(!editing){const s=await ref.get();if(s.exists){toast(`${p.code} already exists. Open it from the list.`);btn.disabled=false;return}}
-    const now=new Date().toISOString();
-    await ref.set({...p,createdBy:editing?.createdBy||uid||null,createdAt:editing?.createdAt||now,updatedBy:uid||null,updatedAt:now});
-    toast(`Saved ${p.code}`);show("patients");
-  }catch(e){toast(e.code==="invalid_argument"?"You don't have permission to save. Ask the owner for Contributor access.":"Could not save: "+(e.message||e.code))}
+    const q=editing?sb.from("patients").update({ward,data:rest}).eq("id",editing._id).select("id")
+                   :sb.from("patients").insert({code,ward,data:rest}).select("id");
+    const{data,error}=await q;
+    if(error)throw error;
+    if(!data||!data.length)throw{code:"42501"};
+    toast(`Saved ${code}`);await loadAll();show("patients");
+  }catch(e){toast(errText(e))}
   btn.disabled=!canWrite;
 };
 
@@ -525,7 +570,7 @@ function openDose(d){
   $("dTitle").textContent=d?`Dose · ${d.code} · ${d.date||""}`:"Record dose";
   $("saveD").disabled=!canWrite;
   const dz=$("dDelZone");dz.replaceChildren();
-  if(d&&canWrite){const b=el("button",{class:"btn danger",type:"button",text:"Delete"});b.onclick=()=>confirmDel(dz,"Delete this dose record?",async()=>{await db.doc("doses/"+d._id).delete();toast("Dose record deleted");show("doses")});dz.append(b)}
+  if(d&&canWrite){const b=el("button",{class:"btn danger",type:"button",text:"Delete"});b.onclick=()=>confirmDel(dz,"Delete this dose record?",async()=>{await sbDel("doses",d._id);toast("Dose record deleted");show("doses")});dz.append(b)}
   updateDrx();show("dose-editor");
 }
 $("newDose").onclick=()=>{if(!patients.length){toast("Enroll a patient first");return}openDose(null)};
@@ -533,14 +578,17 @@ $("dBack").onclick=()=>show("doses");$("cancelD").onclick=()=>show("doses");
 $("saveD").onclick=async()=>{
   const d=readForm(DF,"d_");
   if(!d.code||!d.date){toast("Patient and date are required");return}
-  if(!db){toast("Saving is unavailable in this view");return}
+  if(!session){toast("Sign in to save");return}
+  const{code,date,...rest}=d;
   const btn=$("saveD");btn.disabled=true;
   try{
-    const now=new Date().toISOString();
-    const ref=editingDose?db.doc("doses/"+editingDose._id):db.collection("doses").doc();
-    await ref.set({...d,createdBy:editingDose?.createdBy||uid||null,createdAt:editingDose?.createdAt||now,updatedBy:uid||null,updatedAt:now});
-    toast("Dose record saved");show("doses");
-  }catch(e){toast(e.code==="invalid_argument"?"You don't have permission to save. Ask the owner for Contributor access.":"Could not save: "+(e.message||e.code))}
+    const row={patient_code:code,dose_date:date,data:rest};
+    const q=editingDose?sb.from("doses").update(row).eq("id",editingDose._id).select("id"):sb.from("doses").insert(row).select("id");
+    const{data,error}=await q;
+    if(error)throw error;
+    if(!data||!data.length)throw{code:"42501"};
+    toast("Dose record saved");await loadAll();show("doses");
+  }catch(e){toast(errText(e))}
   btn.disabled=!canWrite;
 };
 
@@ -581,8 +629,6 @@ function renderSummary(){
 const asDate=s=>{if(!s)return"";const d=new Date(s.length===10?s+"T00:00":s);return isNaN(d)?s:d};
 $("exportBtn").onclick=async()=>{
   if(typeof XLSX==="undefined"){toast("The Excel library did not load. Reload the page and try again.");return}
-  const dl=await claude.use("downloads");
-  if(!dl){toast("File downloads aren't available in this view");return}
   const calcLabels={los:"Length of stay (days)",bmi:"BMI (kg/m²)",crcl:"CrCl Cockcroft-Gault (mL/min)",capLevel:"Caprini risk level",hrsSurg:"Hours: first dose vs surgery",durDays:"Inpatient duration (days)",overall:"Overall dosing assessment"};
   // Patient sheet: schema order + auto-check columns before judgement
   const cols=[];for(const[sec,fs]of P){if(sec==="Pharmacist judgement"){cols.push({k:"expDose",l:"Expected dose (mg)",calc:1},{k:"expFreq",l:"Expected frequency",calc:1},{k:"auto",l:"Auto dose check",calc:1})}fs.forEach(f=>cols.push(f))}
@@ -615,29 +661,63 @@ $("exportBtn").onclick=async()=>{
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws1,"Patient Data");XLSX.utils.book_append_sheet(wb,ws2,"Administration");
   const stamp=new Date().toISOString().slice(0,10);
-  const buf=XLSX.write(wb,{bookType:"xlsx",type:"array",cellDates:false});
-  try{await dl.save({filename:`Enoxaparin_study_data_${stamp}.xlsx`,data:new Blob([buf])});toast(`Exported ${sorted.length} patients and ${doses.length} dose records`)}
-  catch(e){if(e.code==="declined")toast("Export cancelled");else if(e.code==="rate_limited")toast("A save prompt is already open");else toast("Export failed: "+(e.message||e.code))}
+  try{XLSX.writeFile(wb,`Enoxaparin_study_data_${stamp}.xlsx`);toast(`Exported ${sorted.length} patients and ${doses.length} dose records`)}
+  catch(e){toast("Export failed: "+(e.message||e))}
 };
 
-// ---------- boot ----------
-async function resolveNames(){
-  if(!user)return;const ids=[...new Set([...patients,...doses].flatMap(x=>[x.createdBy,x.updatedBy]).filter(Boolean))];
-  if(!ids.length)return;try{const ps=await user.profiles(ids);for(const id of ids)names[id]=(ps[id]&&ps[id].name)||"Pharmacist"}catch(e){}
-  renderPatients();renderDoses();
+// ---------- Supabase ----------
+const SB_URL="https://gxfsbsdhrsshsddjjwba.supabase.co";
+const SB_KEY="sb_publishable_0DDH6sdf2X7WZ5XUMdYTSg_Bu_y9Dlc"; // publishable key: safe in the browser, data is protected by row-level security
+const sb=window.supabase?window.supabase.createClient(SB_URL,SB_KEY):null;
+let session=null,channel=null;
+const who=e=>e?(names[e]||e.split("@")[0]):"";
+function rowP(r){return{...(r.data||{}),code:r.code,ward:r.ward,_id:r.id,createdBy:r.created_by_email,updatedBy:r.updated_by_email,updatedAt:r.updated_at}}
+function rowD(r){return{...(r.data||{}),code:r.patient_code,date:r.dose_date,_id:r.id,createdBy:r.created_by_email,updatedBy:r.updated_by_email,updatedAt:r.updated_at}}
+async function loadAll(){
+  const[a,b,t]=await Promise.all([sb.from("patients").select("*"),sb.from("doses").select("*"),sb.from("team_members").select("email,display_name")]);
+  if(a.error||b.error)throw a.error||b.error;
+  names={};(t.data||[]).forEach(m=>names[m.email]=m.display_name||m.email.split("@")[0]);
+  patients=a.data.map(rowP);doses=b.data.map(rowD);
+  for(const x of[...patients,...doses])for(const e of[x.createdBy,x.updatedBy])if(e&&!names[e])names[e]=e.split("@")[0];
+  renderPatients();renderDoses();if(!$("v-summary").hidden)renderSummary();
+}
+let reloadT;function scheduleReload(){clearTimeout(reloadT);reloadT=setTimeout(()=>loadAll().catch(()=>{}),500)}
+function showLogin(){
+  document.body.classList.add("signed-out");document.body.classList.remove("editing");$("v-login").hidden=false;
+  patients=[];doses=[];renderPatients();renderDoses();
+  if(channel){sb.removeChannel(channel);channel=null}
+}
+async function startApp(){
+  document.body.classList.remove("signed-out");$("v-login").hidden=true;show("patients");
+  const email=session.user.email||"";
+  status("info","Loading study data…");
+  const m=await sb.rpc("is_team_member");
+  canWrite=!m.error&&m.data===true;
+  $("newPatient").disabled=!canWrite;$("newDose").disabled=!canWrite;
+  if(!canWrite){status("warn",`${email} is signed in but is not on the study team list. Ask the study owner to add this email.`);return}
+  try{await loadAll()}catch(e){status("bad","Could not load study data: "+errText(e));return}
+  $("whoami").textContent=`Signed in as ${who(email.toLowerCase())}`;
+  status("info","Use coded patient IDs only. Every entry is shared with the study team as soon as you press Save.");
+  if(!channel){channel=sb.channel("study").on("postgres_changes",{event:"*",schema:"public",table:"patients"},scheduleReload).on("postgres_changes",{event:"*",schema:"public",table:"doses"},scheduleReload).subscribe()}
 }
 renderPatients();renderDoses();
-status("info","Loading study data…");
-(async()=>{
-  [db,user]=await Promise.all([claude.use("db"),claude.use("user")]);
-  if(!db){status("bad","The shared study database isn't available in this view. Open the link while signed in to Claude.");$("newPatient").disabled=true;$("newDose").disabled=true;return}
-  if(user){try{uid=await user.id()}catch(e){}try{const w=await user.can("data.write");if(w===false)canWrite=false}catch(e){}}
-  if(!canWrite){$("newPatient").disabled=true;$("newDose").disabled=true}
-  let gotP=false,gotD=false;
-  const timer=setTimeout(()=>{if(!gotP||!gotD)status("warn","The study database can't be reached yet. Entries shown may be out of date.")},10000);
-  const done=()=>{if(gotP&&gotD){clearTimeout(timer);status(canWrite?"info":"warn",canWrite?"Use coded patient IDs only. Every entry is shared with the study team and saved as soon as you press Save.":"You have view-only access. Ask the study owner for Contributor access to add data.")}};
-  db.collection("patients").onSnapshot(s=>{patients=s.docs.map(d=>({_id:d.id,...d.data()}));if(!s.metadata.fromCache){gotP=true;done()}renderPatients();if(!$("v-summary").hidden)renderSummary();resolveNames()},e=>{clearTimeout(timer);status("bad","Patient records stopped loading. Reload the page to reconnect.")});
-  db.collection("doses").onSnapshot(s=>{doses=s.docs.map(d=>({_id:d.id,...d.data()}));if(!s.metadata.fromCache){gotD=true;done()}renderDoses();if(!$("v-summary").hidden)renderSummary();resolveNames()},e=>{clearTimeout(timer);status("bad","Dose records stopped loading. Reload the page to reconnect.")});
-})();
+if(!sb){document.body.classList.add("signed-out");$("lgErr").textContent="The app could not load its database library. Check the connection and reload.";$("lgBtn").disabled=true}
+else{
+  $("loginForm").addEventListener("submit",async e=>{
+    e.preventDefault();$("lgErr").textContent="";
+    const email=$("lgEmail").value.trim(),password=$("lgPass").value;
+    if(!email||!password){$("lgErr").textContent="Enter your email and password.";return}
+    $("lgBtn").disabled=true;$("lgBtn").textContent="Signing in…";
+    const{data,error}=await sb.auth.signInWithPassword({email,password});
+    $("lgBtn").disabled=false;$("lgBtn").textContent="Sign in";
+    if(error){$("lgErr").textContent=/invalid/i.test(error.message)?"Email or password is incorrect.":errText(error);return}
+    session=data.session;$("lgPass").value="";startApp();
+  });
+  $("signOut").onclick=async()=>{await sb.auth.signOut();session=null;showLogin()};
+  sb.auth.onAuthStateChange((ev,s)=>{if(ev==="SIGNED_OUT"){session=null;showLogin()}else if(s)session=s});
+  sb.auth.getSession().then(({data})=>{session=data.session;session?startApp():showLogin()});
+}
 })();
 </script>
+</body>
+</html>
