@@ -1,0 +1,643 @@
+<title>Enoxaparin Study Collector</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Layout: mobile-first ward tool. Phone = compact header, card lists, bottom tab bar, fixed save bar.
+   ≥900px = tabs move under the header, lists go multi-column, forms widen to a grid. */
+:root{
+  --bg:#f4f7f8; --surface:#ffffff; --sunk:#e9eff1; --line:#d3dde1;
+  --ink:#13222b; --muted:#5b6d77; --accent:#1c5d66; --accent-ink:#ffffff; --accent-soft:#d9ebec;
+  --ok:#2e7d4f; --ok-soft:#dcefe3; --bad:#b4382c; --bad-soft:#f6dedb; --warn:#8a5f00; --warn-soft:#f6ebcc;
+  --calc:#eaf1f6;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --nav-h:60px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f171b; --surface:#16222a; --sunk:#1d2b34; --line:#2c3d47;
+  --ink:#e4ecef; --muted:#93a6b0; --accent:#5fb3bb; --accent-ink:#0b1a1d; --accent-soft:#1d3a3f;
+  --ok:#6cc792; --ok-soft:#1c3427; --bad:#ef8a7e; --bad-soft:#3d2220; --warn:#e2b54d; --warn-soft:#3a3018;
+  --calc:#1a2933; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f171b; --surface:#16222a; --sunk:#1d2b34; --line:#2c3d47;
+  --ink:#e4ecef; --muted:#93a6b0; --accent:#5fb3bb; --accent-ink:#0b1a1d; --accent-soft:#1d3a3f;
+  --ok:#6cc792; --ok-soft:#1c3427; --bad:#ef8a7e; --bad-soft:#3d2220; --warn:#e2b54d; --warn-soft:#3a3018;
+  --calc:#1a2933; color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.45;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px))}
+body.editing{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* header */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:12px;padding-block:10px}
+.brand{flex:1;min-width:0}
+.brand h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand p{margin:1px 0 0;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* bottom tab bar (phone) */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border-top:1px solid var(--line);padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+body.editing .tabs{display:none}
+.tab{appearance:none;border:0;background:none;color:var(--muted);font:600 12px var(--sans);height:var(--nav-h);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;position:relative}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-selected="true"]{color:var(--accent)}
+.tab[aria-selected="true"]::before{content:"";position:absolute;top:0;left:30%;right:30%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+.tab .n{position:absolute;top:7px;left:calc(50% + 8px);font:500 10px var(--mono);background:var(--accent-soft);color:var(--ink);border-radius:999px;padding:1px 6px}
+
+/* buttons & inputs: 44px targets, 16px text so phones don't zoom */
+button.btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 15px var(--sans);min-height:44px;padding:0 16px;border-radius:8px;cursor:pointer;touch-action:manipulation}
+button.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.btn.danger{color:var(--bad);border-color:var(--bad);background:transparent}
+button.btn.icon{padding:0 12px;display:inline-flex;align-items:center;gap:6px}
+button.btn.icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+button.btn:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,.item:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select,textarea{font:16px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0;min-height:44px}
+textarea{min-height:88px;resize:vertical}
+.export-label{display:none}
+
+main{padding-block:14px 28px}
+.notice{padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:12px}
+.notice.info{background:var(--accent-soft)}
+.notice.warn{background:var(--warn-soft)}
+.notice.bad{background:var(--bad-soft)}
+
+/* list toolbar */
+.bar{display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:12px}
+.bar .search{grid-column:1/-1}
+.bar .note{color:var(--muted);font-size:13px;align-self:center}
+
+/* cards */
+.list{display:grid;gap:10px}
+.item{display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;appearance:none;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer;min-width:0}
+.item:active{background:var(--sunk)}
+.item .r1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.item .code{font:500 16px var(--mono)}
+.item .r2{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .meta{display:flex;flex-wrap:wrap;gap:6px 12px;color:var(--muted);font-size:13px;align-items:center}
+.item .meta b{font:500 13px var(--mono);color:var(--ink);font-variant-numeric:tabular-nums}
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.inc{background:var(--sunk);color:var(--muted)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.empty{padding:32px 18px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px}
+.empty strong{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+
+/* editor */
+.editor-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.editor-head h2{margin:0;font-size:18px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rx{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.rx div{background:var(--calc);padding:8px 12px;min-width:0}
+.rx span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.rx b{font-family:var(--mono);font-weight:500;font-size:15px;font-variant-numeric:tabular-nums}
+details.sec{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:0 0 10px}
+details.sec>summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:50px;padding:0 14px;cursor:pointer;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary .prog{margin-left:auto;font:500 12px var(--mono);color:var(--muted);text-transform:none;letter-spacing:0}
+details.sec>summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin:-4px 2px 0 0}
+details.sec[open]>summary::after{transform:rotate(-135deg);margin-top:4px}
+.grid{display:grid;grid-template-columns:1fr;gap:14px;padding:4px 14px 16px}
+.f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.f label,.f .lbl{font-size:13px;font-weight:600;color:var(--muted)}
+.f .hint{font-size:12px;color:var(--muted)}
+.f.calc input{background:var(--calc);font-family:var(--mono);border-style:dashed}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg label{position:relative;display:flex;align-items:center;justify-content:center;min-height:44px;font:600 14px var(--sans);color:var(--ink);cursor:pointer;border-left:1px solid var(--line);padding:0 6px;text-align:center;touch-action:manipulation}
+.seg label:first-child{border-left:0}
+.seg input{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;min-height:0}
+.seg label:has(input:checked){background:var(--accent);color:var(--accent-ink)}
+.seg label:has(input[value="No"]:checked){background:var(--bad);color:var(--accent-ink)}
+.seg label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:-2px}
+.actions{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line)}
+.actions .wrap{display:flex;gap:10px;align-items:center;padding-block:10px calc(10px + env(safe-area-inset-bottom,0px))}
+.actions .grow{flex:1;min-width:0}
+.actions .btn.primary{flex:1}
+.msg{font-size:13px;color:var(--muted);margin:4px 0 14px}
+.confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:8px;background:var(--bad-soft);font-size:14px;margin-bottom:12px}
+
+/* summary */
+.sumgrid{display:grid;gap:12px}
+.card{border:1px solid var(--line);border-radius:10px;background:var(--surface);min-width:0;overflow:hidden}
+.card h3{margin:0;padding:11px 14px;font-size:14px;border-bottom:1px solid var(--line)}
+.card .tb{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line)}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;background:var(--sunk)}
+tbody tr:last-child td{border-bottom:0}
+td.num,.pct{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.meter{height:6px;border-radius:3px;background:var(--sunk);overflow:hidden;margin-top:4px;min-width:50px}
+.meter i{display:block;height:100%;background:var(--accent)}
+.toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:14px;z-index:20;width:max-content;max-width:calc(100% - 32px)}
+body.editing .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+
+/* ---------- larger screens ---------- */
+@media (min-width:600px){
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .f.wide{grid-column:1/-1}
+  .rx{grid-template-columns:repeat(4,1fr)}
+  .list{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bar{grid-template-columns:1fr auto auto}
+  .bar .search{grid-column:auto}
+  .export-label{display:inline}
+}
+@media (min-width:900px){
+  body,body.editing{padding-bottom:0}
+  .tabs{position:static;display:flex;gap:4px;border-top:0;padding:0 0 8px;background:none;max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  body.editing .tabs{display:flex}
+  .tab{flex-direction:row;height:auto;padding:8px 12px;border-radius:6px;font-size:13px}
+  .tab svg{width:16px;height:16px}
+  .tab[aria-selected="true"]{background:var(--accent-soft);color:var(--ink)}
+  .tab[aria-selected="true"]::before{display:none}
+  .tab .n{position:static}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .rx{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+  .list{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .sumgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .actions{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--line);margin-top:6px}
+  .actions .wrap{padding-left:0;padding-right:0}
+  .actions .btn.primary{flex:0 0 auto}
+  .toast,body.editing .toast{bottom:24px}
+}
+</style>
+
+<header>
+  <div class="wrap top">
+    <div class="brand">
+      <h1>Enoxaparin Study Collector</h1>
+      <p>General Surgery &amp; Gynecology · pharmacist data collection</p>
+    </div>
+    <button class="btn primary icon" id="exportBtn" type="button" aria-label="Export to Excel"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="export-label">Export to Excel</span></button>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" role="tab" id="tab-patients" aria-selected="true" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Patients<span class="n" id="nP">0</span></button>
+    <button class="tab" role="tab" id="tab-doses" aria-selected="false" type="button"><svg viewBox="0 0 24 24"><path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3a2.4 2.4 0 0 1-3.4 0l-.6-.6a2.4 2.4 0 0 1 0-3.4L15 5"/><path d="m9 11 4 4"/><path d="m5 19-3 3"/></svg>Doses<span class="n" id="nD">0</span></button>
+    <button class="tab" role="tab" id="tab-summary" aria-selected="false" type="button"><svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>Summary</button>
+  </nav>
+</header>
+
+<main class="wrap">
+  <div id="status"></div>
+
+  <section id="v-patients">
+    <div class="bar">
+      <input class="search" id="search" type="search" placeholder="Search code or procedure" aria-label="Search patients">
+      <select id="wardFilter" aria-label="Filter by ward">
+        <option value="">All wards</option><option>General Surgery</option><option>Gynecology</option>
+      </select>
+      <button class="btn primary" id="newPatient" type="button">+ New patient</button>
+    </div>
+    <div class="list" id="pRows"></div>
+    <div class="empty" id="pEmpty"><strong>No patients yet</strong>Tap “New patient” to enroll the first patient on enoxaparin. Use coded IDs only (GS-001, GY-001), never names.</div>
+  </section>
+
+  <section id="v-editor" hidden>
+    <div class="editor-head">
+      <button class="btn" id="backBtn" type="button" aria-label="Back to patient list">←</button>
+      <h2 id="edTitle">New patient</h2>
+    </div>
+    <div class="rx" id="rx"></div>
+    <p class="msg" id="edMsg"></p>
+    <div id="delZone"></div>
+    <form id="pForm" novalidate></form>
+    <div class="actions"><div class="wrap">
+      <button class="btn" id="cancelP" type="button">Cancel</button>
+      <button class="btn primary" id="saveP" type="button">Save patient</button>
+    </div></div>
+  </section>
+
+  <section id="v-doses" hidden>
+    <div class="bar">
+      <span class="note">One record per dose, observed or from the nursing chart.</span>
+      <button class="btn primary" id="newDose" type="button">+ Record dose</button>
+    </div>
+    <div class="list" id="dRows"></div>
+    <div class="empty" id="dEmpty"><strong>No dose records yet</strong>Enroll the patient first, then record each observed or charted dose here.</div>
+  </section>
+
+  <section id="v-dose-editor" hidden>
+    <div class="editor-head">
+      <button class="btn" id="dBack" type="button" aria-label="Back to dose list">←</button>
+      <h2 id="dTitle">Record dose</h2>
+    </div>
+    <div class="rx" id="drx"></div>
+    <p class="msg" id="dMsg">Technique items apply to direct observation. Use N/A for chart review.</p>
+    <div id="dDelZone"></div>
+    <form id="dForm" novalidate></form>
+    <div class="actions"><div class="wrap">
+      <button class="btn" id="cancelD" type="button">Cancel</button>
+      <button class="btn primary" id="saveD" type="button">Save dose</button>
+    </div></div>
+  </section>
+
+  <section id="v-summary" hidden>
+    <div class="sumgrid" id="sum"></div>
+  </section>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+const YN=["Yes","No"], YNA=["Yes","No","N/A"];
+const ERR=["None","Unindicated use","Indicated but not prescribed","Wrong dose","Wrong frequency","No renal adjustment","No weight adjustment","Wrong timing vs surgery","Wrong timing vs neuraxial","Duration too short","Duration too long","No extended prophylaxis when indicated","Monitoring not done","Duplicate anticoagulant","Interacting drug not managed","Given despite contraindication","Other"];
+// Patient schema — mirrors the Excel template columns
+const P=[
+ ["Identification",[
+  {k:"code",l:"Patient code",t:"text",req:1,h:"GS-001 / GY-001. No names."},
+  {k:"ward",l:"Ward",t:"sel",o:["General Surgery","Gynecology"],req:1},
+  {k:"admDate",l:"Admission date",t:"date"},
+  {k:"disDate",l:"Discharge date",t:"date"},
+  {k:"los",l:"Length of stay (days)",calc:1}]],
+ ["Patient",[
+  {k:"age",l:"Age (years)",t:"num"},
+  {k:"sex",l:"Sex",t:"sel",o:["Male","Female"]},
+  {k:"weight",l:"Weight (kg)",t:"num",h:"Actual body weight"},
+  {k:"height",l:"Height (cm)",t:"num"},
+  {k:"bmi",l:"BMI (kg/m²)",calc:1},
+  {k:"scr",l:"Serum creatinine (mg/dL)",t:"num",h:"µmol/L ÷ 88.4"},
+  {k:"crcl",l:"CrCl Cockcroft-Gault (mL/min)",calc:1},
+  {k:"plt",l:"Baseline platelets (×10³/µL)",t:"num"},
+  {k:"hb",l:"Baseline Hb (g/dL)",t:"num"},
+  {k:"inr",l:"Baseline INR",t:"num"}]],
+ ["Surgery",[
+  {k:"procedure",l:"Diagnosis / procedure",t:"text"},
+  {k:"surgCat",l:"Surgery category",t:"sel",o:["Major","Minor","Non-operative"]},
+  {k:"malignancy",l:"Malignancy",t:"sel",o:YN},
+  {k:"surgDT",l:"Surgery date & time",t:"dt"},
+  {k:"anesthesia",l:"Anesthesia type",t:"sel",o:["General","Spinal","Epidural","Combined spinal-epidural","Local/None"]},
+  {k:"cathDT",l:"Neuraxial catheter removal",t:"dt",h:"Only if epidural/CSE catheter"}]],
+ ["Indication & risk",[
+  {k:"vteDoc",l:"VTE risk assessment documented",t:"sel",o:YN},
+  {k:"caprini",l:"Caprini score (pharmacist)",t:"num"},
+  {k:"capLevel",l:"Caprini risk level",calc:1},
+  {k:"bleedRisk",l:"Bleeding risk factor present",t:"sel",o:YN},
+  {k:"indication",l:"Indication",t:"sel",o:["Prophylaxis","Treatment"]},
+  {k:"txDetails",l:"Treatment indication details",t:"text",h:"e.g. DVT, PE. Blank for prophylaxis."}]],
+ ["Prescription",[
+  {k:"dose",l:"Prescribed dose (mg)",t:"num"},
+  {k:"freq",l:"Prescribed frequency",t:"sel",o:["OD","BID"]},
+  {k:"firstDT",l:"First dose date & time",t:"dt"},
+  {k:"lastDT",l:"Last dose date & time",t:"dt"},
+  {k:"timing",l:"Timing of first dose",t:"sel",o:["Pre-op","Post-op","No surgery"]},
+  {k:"hrsSurg",l:"Hours: first dose vs surgery",calc:1},
+  {k:"hrsCath",l:"Hours: catheter removal to next dose",t:"num",h:"Requirement ≥ 4 h"},
+  {k:"durDays",l:"Inpatient duration (days)",calc:1},
+  {k:"extProph",l:"Extended prophylaxis at discharge",t:"sel",o:YNA},
+  {k:"antiplt",l:"Concurrent antiplatelet / NSAID",t:"sel",o:YN},
+  {k:"dupAc",l:"Duplicate anticoagulant (UFH/other)",t:"sel",o:YN},
+  {k:"pltMon",l:"Platelets monitored during therapy",t:"sel",o:YNA},
+  {k:"antiXa",l:"Anti-Xa measured",t:"sel",o:YNA}]],
+ ["Pharmacist judgement",[
+  {k:"jInd",l:"Indication appropriate",t:"sel",o:YNA},
+  {k:"jDose",l:"Dose & frequency appropriate",t:"sel",o:YNA},
+  {k:"jTime",l:"Timing appropriate",t:"sel",o:YNA},
+  {k:"jDur",l:"Duration appropriate",t:"sel",o:YNA},
+  {k:"jMon",l:"Monitoring appropriate",t:"sel",o:YNA},
+  {k:"overall",l:"Overall dosing assessment",calc:1},
+  {k:"err1",l:"Error type 1",t:"sel",o:ERR},
+  {k:"err2",l:"Error type 2",t:"sel",o:ERR}]],
+ ["Outcomes during stay",[
+  {k:"bleed",l:"Bleeding event",t:"sel",o:YN},
+  {k:"vte",l:"Symptomatic VTE",t:"sel",o:YN},
+  {k:"pltFall",l:"Platelets fell >50% or <100",t:"sel",o:YN},
+  {k:"interv",l:"Pharmacist intervention",t:"sel",o:["None","Accepted","Not accepted"],h:"Record the finding first"},
+  {k:"notes",l:"Notes",t:"area",wide:1}]]
+];
+const TECH=[["t1","Correct dose / syringe"],["t2","SC route"],["t3","Abdominal site ≥5 cm from umbilicus"],["t4","Air bubble NOT expelled"],["t5","Skin fold held throughout"],["t6","Needle inserted at 90°"],["t7","Site NOT rubbed after"],["t8","Site rotated from last dose"],["t9","Hand hygiene / gloves"]];
+const D=[
+ ["Dose",[
+  {k:"code",l:"Patient code",t:"psel",req:1},
+  {k:"date",l:"Date",t:"date",req:1},
+  {k:"source",l:"Source",t:"sel",o:["Direct observation","Nursing chart"]},
+  {k:"shift",l:"Shift",t:"sel",o:["Morning","Evening","Night"]},
+  {k:"nurse",l:"Nurse code",t:"text",h:"Anonymous, e.g. N01"},
+  {k:"sched",l:"Scheduled time",t:"time"},
+  {k:"actual",l:"Actual time",t:"time"},
+  {k:"delay",l:"Delay (min)",calc:1},
+  {k:"status",l:"Dose status",t:"sel",o:["Given","Missed","Held (documented reason)"]},
+  {k:"reason",l:"Reason not given",t:"text"}]],
+ ["Technique (direct observation)",TECH.map(([k,l])=>({k,l,t:"sel",o:YNA}))],
+ ["Notes",[{k:"notes",l:"Notes",t:"area",wide:1}]]
+];
+const PF=P.flatMap(s=>s[1]), DF=D.flatMap(s=>s[1]);
+
+// ---------- calculations ----------
+const n=v=>{if(v===""||v==null)return null;const x=parseFloat(v);return isFinite(x)?x:null};
+const r1=x=>Math.round(x*10)/10;
+function calcP(p){
+  const o={};const w=n(p.weight),h=n(p.height),age=n(p.age),scr=n(p.scr),cap=n(p.caprini);
+  if(p.admDate&&p.disDate)o.los=Math.round((Date.parse(p.disDate)-Date.parse(p.admDate))/864e5);
+  if(w&&h)o.bmi=r1(w/Math.pow(h/100,2));
+  if(age!=null&&w&&scr&&p.sex)o.crcl=Math.round((140-age)*w/(72*scr)*(p.sex==="Female"?0.85:1));
+  if(cap!=null)o.capLevel=cap<=1?"Very low/Low":cap===2?"Low":cap<=4?"Moderate":"High";
+  if(p.firstDT&&p.surgDT)o.hrsSurg=r1((Date.parse(p.firstDT)-Date.parse(p.surgDT))/36e5);
+  if(p.firstDT&&p.lastDT)o.durDays=Math.round((Date.parse(p.lastDT.slice(0,10))-Date.parse(p.firstDT.slice(0,10)))/864e5)+1;
+  const renal=o.crcl!=null&&o.crcl<30;
+  if(p.indication&&w){o.expDose=p.indication==="Prophylaxis"?(renal?30:40):Math.round(w)}
+  if(p.indication){o.expFreq=p.indication==="Prophylaxis"?(renal?"OD":(o.bmi!=null&&o.bmi>=40?"BID":"OD")):(renal?"OD":"BID")}
+  const dose=n(p.dose);
+  if(dose!=null&&o.expDose!=null&&p.freq)o.auto=(Math.abs(dose-o.expDose)<=0.1*o.expDose&&p.freq===o.expFreq)?"Match":"Review";
+  const js=["jInd","jDose","jTime","jDur","jMon"].map(k=>p[k]);
+  o.overall=js.some(v=>!v)?"Incomplete":js.includes("No")?"Inappropriate":"Appropriate";
+  return o;
+}
+function tmin(t){if(!t)return null;const[a,b]=t.split(":").map(Number);return a*60+b}
+function calcD(d){
+  const o={};const s=tmin(d.sched),a=tmin(d.actual);
+  if(s!=null&&a!=null){let x=a-s;if(x<-720)x+=1440;if(x>720)x-=1440;o.delay=x;o.onTime=Math.abs(x)<=60?"Yes":"No"}
+  const v=TECH.map(([k])=>d[k]);const yes=v.filter(x=>x==="Yes").length,no=v.filter(x=>x==="No").length;
+  o.correct=yes;o.assessed=yes+no;
+  if(o.assessed){o.score=yes/o.assessed;o.all=yes===o.assessed?"Yes":"No"}
+  return o;
+}
+
+// ---------- DOM helpers ----------
+const $=id=>document.getElementById(id);
+function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k==="text")e.textContent=v;else e.setAttribute(k,v)}for(const c of kids)if(c!=null)e.append(c);return e}
+let toastT;function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
+function status(kind,msg){const s=$("status");s.replaceChildren();if(msg)s.append(el("div",{class:"notice "+kind,text:msg}))}
+
+const isSeg=f=>f.t==="sel"&&f.o&&f.o.length<=3;
+function segField(id,opts){
+  const g=el("div",{class:"seg",role:"radiogroup",id,"aria-labelledby":id+"_l"});
+  opts.forEach(o=>g.append(el("label",null,el("input",{type:"radio",name:id,value:o}),el("span",{text:o}))));
+  g.addEventListener("pointerdown",e=>{const r=e.target.closest("label")?.querySelector("input");if(r)r.dataset.was=r.checked?"1":""});
+  g.addEventListener("click",e=>{const r=e.target;if(r.tagName==="INPUT"&&r.dataset.was==="1"){r.checked=false;r.dataset.was="";g.dispatchEvent(new Event("change",{bubbles:true}))}});
+  return g;
+}
+function buildForm(form,schema,prefix){
+  form.replaceChildren();
+  schema.forEach(([sec,fields],si)=>{
+    const g=el("div",{class:"grid"});
+    for(const f of fields){
+      const id=prefix+f.k;let input,lab;
+      if(isSeg(f)){input=segField(id,f.o);lab=el("span",{class:"lbl",id:id+"_l",text:f.l+(f.req?" *":"")})}
+      else{
+        if(f.calc){input=el("input",{id,readonly:"",tabindex:"-1"})}
+        else if(f.t==="sel"||f.t==="psel"){input=el("select",{id});input.append(el("option",{value:"",text:"—"}));(f.o||[]).forEach(o=>input.append(el("option",{value:o,text:o})))}
+        else if(f.t==="area"){input=el("textarea",{id})}
+        else{input=el("input",{id,type:{num:"number",date:"date",dt:"datetime-local",time:"time",text:"text"}[f.t]||"text"});if(f.t==="num"){input.setAttribute("step","any");input.setAttribute("inputmode","decimal")}}
+        lab=el("label",{for:id,text:f.l+(f.req?" *":"")});
+      }
+      const wrap=el("div",{class:"f"+(f.calc?" calc":"")+(f.wide||f.t==="area"?" wide":"")},lab,input);
+      if(f.h)wrap.append(el("span",{class:"hint",text:f.h}));
+      g.append(wrap);
+    }
+    const sum=el("summary",null,el("span",{text:sec}),el("span",{class:"prog",id:prefix+"prog"+si}));
+    const d=el("details",{class:"sec",open:""},sum,g);
+    form.append(d);
+  });
+}
+function readForm(fields,prefix){const o={};for(const f of fields){if(f.calc)continue;const id=prefix+f.k;
+  if(isSeg(f)){const c=document.querySelector(`input[name="${id}"]:checked`);o[f.k]=c?c.value:""}
+  else{const v=$(id).value;o[f.k]=typeof v==="string"?v.trim():v}}return o}
+function fillForm(fields,prefix,data){for(const f of fields){if(f.calc)continue;const id=prefix+f.k,v=data&&data[f.k]!=null?String(data[f.k]):"";
+  if(isSeg(f))document.querySelectorAll(`input[name="${id}"]`).forEach(r=>r.checked=r.value===v);else $(id).value=v}}
+function prog(schema,prefix,data){schema.forEach(([s,fs],i)=>{const inF=fs.filter(f=>!f.calc);const done=inF.filter(f=>data[f.k]).length;const e=$(prefix+"prog"+i);if(e)e.textContent=`${done}/${inF.length}`})}
+
+// ---------- state ----------
+let db=null,user=null,uid=null,canWrite=true;
+let patients=[],doses=[],names={};
+let editing=null,editingDose=null;
+const fmt=v=>v==null||v===""?"—":String(v);
+
+// ---------- views ----------
+function show(view){
+  ["patients","editor","doses","dose-editor","summary"].forEach(v=>$("v-"+v).hidden=v!==view);
+  const tab=view==="editor"?"patients":view==="dose-editor"?"doses":view;
+  ["patients","doses","summary"].forEach(t=>$("tab-"+t).setAttribute("aria-selected",String(t===tab)));
+  document.body.classList.toggle("editing",view==="editor"||view==="dose-editor");window.scrollTo(0,0);
+}
+$("tab-patients").onclick=()=>show("patients");
+$("tab-doses").onclick=()=>show("doses");
+$("tab-summary").onclick=()=>{renderSummary();show("summary")};
+
+function chip(text){const cls=text==="Appropriate"||text==="Match"||text==="Yes"||text==="All correct"||text==="Given"?"ok":text==="Inappropriate"||text==="No"||text==="Errors"||text==="Missed"?"bad":text==="Review"?"warn":"inc";return el("span",{class:"chip "+cls,text})}
+
+function itemCard(main,right,line2,meta,onOpen){
+  const b=el("button",{class:"item",type:"button"},el("div",{class:"r1"},main,right));
+  if(line2)b.append(el("div",{class:"r2",text:line2}));
+  b.append(meta);b.onclick=onOpen;return b;
+}
+function m(label,val){return el("span",null,label+" ",el("b",{text:val}))}
+function renderPatients(){
+  $("nP").textContent=patients.length;
+  const q=$("search").value.trim().toLowerCase(),w=$("wardFilter").value;
+  const rows=patients.filter(p=>(!w||p.ward===w)&&(!q||(p.code||"").toLowerCase().includes(q)||(p.procedure||"").toLowerCase().includes(q)))
+    .sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||""));
+  const box=$("pRows");box.replaceChildren();
+  for(const p of rows){
+    const c=calcP(p);
+    const meta=el("div",{class:"meta"},m("Rx",p.dose?`${p.dose} mg ${p.freq||""}`:"—"),m("CrCl",fmt(c.crcl)));
+    if(c.auto)meta.append(chip(c.auto));
+    const by=names[p.updatedBy]||names[p.createdBy];if(by)meta.append(el("span",{text:"· "+by}));
+    box.append(itemCard(el("span",{class:"code",text:p.code}),chip(c.overall),[p.ward,p.procedure,p.indication].filter(Boolean).join(" · "),meta,()=>openPatient(p)));
+  }
+  $("pEmpty").hidden=rows.length>0;
+  $("pEmpty").firstChild.textContent=patients.length?"No patients match this filter":"No patients yet";
+}
+$("search").oninput=renderPatients;$("wardFilter").onchange=renderPatients;
+
+function renderDoses(){
+  $("nD").textContent=doses.length;
+  const box=$("dRows");box.replaceChildren();
+  const rows=[...doses].sort((a,b)=>((b.date||"")+(b.sched||"")).localeCompare((a.date||"")+(a.sched||"")));
+  for(const d of rows){
+    const c=calcD(d);
+    const meta=el("div",{class:"meta"},m("Delay",c.delay!=null?c.delay+" min":"—"),m("Technique",c.assessed?`${c.correct}/${c.assessed}`:"—"));
+    box.append(itemCard(el("span",{class:"code",text:d.code}),c.all?chip(c.all==="Yes"?"All correct":"Errors"):chip(d.status||"—"),
+      [d.date,d.shift,d.source,d.status].filter(Boolean).join(" · "),meta,()=>openDose(d)));
+  }
+  $("dEmpty").hidden=rows.length>0;
+}
+
+// ---------- patient editor ----------
+buildForm($("pForm"),P,"p_");
+function updateRx(){
+  const p=readForm(PF,"p_"),c=calcP(p);
+  for(const f of PF)if(f.calc)$("p_"+f.k).value=c[f.k]!=null?c[f.k]:"";
+  const rx=$("rx");rx.replaceChildren();
+  const cells=[["CrCl",c.crcl!=null?c.crcl+" mL/min":"—"],["BMI",fmt(c.bmi)],["Expected",c.expDose!=null?`${c.expDose} mg ${c.expFreq}`:"—"],["Prescribed",p.dose?`${p.dose} mg ${p.freq||""}`:"—"],["Dose vs surgery",c.hrsSurg!=null?c.hrsSurg+" h":"—"]];
+  for(const[k,v]of cells)rx.append(el("div",null,el("span",{text:k}),el("b",{text:v})));
+  const a=el("div",null,el("span",{text:"Auto check"}));a.append(c.auto?chip(c.auto):el("b",{text:"—"}));rx.append(a);
+  const o=el("div",null,el("span",{text:"Overall"}));o.append(chip(c.overall));rx.append(o);
+  prog(P,"p_",p);
+}
+$("pForm").addEventListener("input",updateRx);$("pForm").addEventListener("change",updateRx);
+function openPatient(p){
+  editing=p||null;fillForm(PF,"p_",p);
+  $("p_code").readOnly=!!p;
+  $("edTitle").textContent=p?`Patient ${p.code}`:"New patient";
+  $("edMsg").textContent=canWrite?"Shaded fields calculate automatically. The auto check is a screening flag; your judgement columns decide.":"You have view-only access, so changes cannot be saved.";
+  $("saveP").disabled=!canWrite;
+  const dz=$("delZone");dz.replaceChildren();
+  if(p&&canWrite){const b=el("button",{class:"btn danger",type:"button",text:"Delete"});b.onclick=()=>confirmDel(dz,`Delete ${p.code} and keep its dose records?`,async()=>{await db.doc("patients/"+p._id).delete();toast(`Deleted ${p.code}`);show("patients")});dz.append(b)}
+  updateRx();show("editor");
+}
+function confirmDel(zone,msg,fn){
+  zone.replaceChildren();
+  const yes=el("button",{class:"btn danger",type:"button",text:"Yes, delete"}),no=el("button",{class:"btn",type:"button",text:"Cancel"});
+  yes.onclick=async()=>{yes.disabled=true;try{await fn()}catch(e){toast("Could not delete: "+(e.message||e.code))}zone.replaceChildren()};
+  no.onclick=()=>zone.replaceChildren();
+  zone.append(el("span",{class:"confirm"},el("span",{text:msg}),yes,no));
+}
+$("newPatient").onclick=()=>openPatient(null);
+$("backBtn").onclick=()=>show("patients");$("cancelP").onclick=()=>show("patients");
+const idOf=code=>code.replace(/[^A-Za-z0-9_\-.~:@+]/g,"-").replace(/^\.+$/,"x").slice(0,120);
+$("saveP").onclick=async()=>{
+  const p=readForm(PF,"p_");
+  if(!p.code||!p.ward){toast("Patient code and ward are required");return}
+  if(!db){toast("Saving is unavailable in this view");return}
+  const id=editing?editing._id:idOf(p.code);
+  const btn=$("saveP");btn.disabled=true;
+  try{
+    const ref=db.doc("patients/"+id);
+    if(!editing){const s=await ref.get();if(s.exists){toast(`${p.code} already exists. Open it from the list.`);btn.disabled=false;return}}
+    const now=new Date().toISOString();
+    await ref.set({...p,createdBy:editing?.createdBy||uid||null,createdAt:editing?.createdAt||now,updatedBy:uid||null,updatedAt:now});
+    toast(`Saved ${p.code}`);show("patients");
+  }catch(e){toast(e.code==="invalid_argument"?"You don't have permission to save. Ask the owner for Contributor access.":"Could not save: "+(e.message||e.code))}
+  btn.disabled=!canWrite;
+};
+
+// ---------- dose editor ----------
+buildForm($("dForm"),D,"d_");
+function refreshPatientSelect(){
+  const s=$("d_code"),cur=s.value;s.replaceChildren(el("option",{value:"",text:"— choose patient —"}));
+  [...patients].sort((a,b)=>a.code.localeCompare(b.code)).forEach(p=>s.append(el("option",{value:p.code,text:`${p.code} · ${p.ward||""}`})));
+  s.value=cur;
+}
+function updateDrx(){
+  const d=readForm(DF,"d_"),c=calcD(d);$("d_delay").value=c.delay!=null?c.delay:"";
+  const rx=$("drx");rx.replaceChildren();
+  rx.append(el("div",null,el("span",{text:"Delay"}),el("b",{text:c.delay!=null?c.delay+" min":"—"})));
+  const ot=el("div",null,el("span",{text:"On time (±60 min)"}));ot.append(c.onTime?chip(c.onTime):el("b",{text:"—"}));rx.append(ot);
+  rx.append(el("div",null,el("span",{text:"Technique"}),el("b",{text:c.assessed?`${c.correct}/${c.assessed} · ${Math.round(c.score*100)}%`:"—"})));
+  const al=el("div",null,el("span",{text:"All steps correct"}));al.append(c.all?chip(c.all):el("b",{text:"—"}));rx.append(al);
+  prog(D,"d_",d);
+}
+$("dForm").addEventListener("input",updateDrx);$("dForm").addEventListener("change",updateDrx);
+function openDose(d){
+  editingDose=d||null;refreshPatientSelect();fillForm(DF,"d_",d);
+  $("dTitle").textContent=d?`Dose · ${d.code} · ${d.date||""}`:"Record dose";
+  $("saveD").disabled=!canWrite;
+  const dz=$("dDelZone");dz.replaceChildren();
+  if(d&&canWrite){const b=el("button",{class:"btn danger",type:"button",text:"Delete"});b.onclick=()=>confirmDel(dz,"Delete this dose record?",async()=>{await db.doc("doses/"+d._id).delete();toast("Dose record deleted");show("doses")});dz.append(b)}
+  updateDrx();show("dose-editor");
+}
+$("newDose").onclick=()=>{if(!patients.length){toast("Enroll a patient first");return}openDose(null)};
+$("dBack").onclick=()=>show("doses");$("cancelD").onclick=()=>show("doses");
+$("saveD").onclick=async()=>{
+  const d=readForm(DF,"d_");
+  if(!d.code||!d.date){toast("Patient and date are required");return}
+  if(!db){toast("Saving is unavailable in this view");return}
+  const btn=$("saveD");btn.disabled=true;
+  try{
+    const now=new Date().toISOString();
+    const ref=editingDose?db.doc("doses/"+editingDose._id):db.collection("doses").doc();
+    await ref.set({...d,createdBy:editingDose?.createdBy||uid||null,createdAt:editingDose?.createdAt||now,updatedBy:uid||null,updatedAt:now});
+    toast("Dose record saved");show("doses");
+  }catch(e){toast(e.code==="invalid_argument"?"You don't have permission to save. Ask the owner for Contributor access.":"Could not save: "+(e.message||e.code))}
+  btn.disabled=!canWrite;
+};
+
+// ---------- summary ----------
+function pctCell(a,b){const td=el("td",{class:"pct"});if(!b){td.textContent="—";return td}const v=a/b;td.append(el("span",{text:(v*100).toFixed(1)+"%"}),el("div",{class:"meter"},el("i",{style:`width:${(v*100).toFixed(1)}%`})));return td}
+function card(title,head,rows){const tb=el("tbody");rows.forEach(r=>tb.append(el("tr",null,...r)));return el("div",{class:"card"},el("h3",{text:title}),el("div",{class:"tb"},el("table",null,el("thead",null,el("tr",null,...head.map(h=>el("th",{text:h})))),tb)))}
+const td=(t,c)=>el("td",{class:c||"",text:String(t)});
+function summaryData(){
+  const C=patients.map(p=>({p,c:calcP(p)}));
+  const by=w=>C.filter(x=>!w||x.p.ward===w);
+  return{C,by};
+}
+function renderSummary(){
+  const box=$("sum");box.replaceChildren();
+  const{C,by}=summaryData();
+  const wards=["","General Surgery","Gynecology"];
+  const cnt=(arr,f)=>arr.filter(f).length;
+  const base=[["Patients enrolled",x=>true],["Prophylaxis",x=>x.p.indication==="Prophylaxis"],["Treatment",x=>x.p.indication==="Treatment"],["CrCl < 30 mL/min",x=>x.c.crcl!=null&&x.c.crcl<30],["BMI ≥ 40",x=>x.c.bmi!=null&&x.c.bmi>=40],["High Caprini (≥5)",x=>n(x.p.caprini)>=5],["Malignancy",x=>x.p.malignancy==="Yes"]];
+  box.append(card("Patients",["Measure","All","Gen. Surgery","Gynecology"],base.map(([l,f])=>[td(l),...wards.map(w=>td(cnt(by(w),f),"num"))])));
+  const crit=[["VTE risk assessment documented","vteDoc"],["Indication appropriate","jInd"],["Dose & frequency appropriate","jDose"],["Timing appropriate","jTime"],["Duration appropriate","jDur"],["Monitoring appropriate","jMon"]];
+  const rows=crit.map(([l,k])=>{const y=cnt(C,x=>x.p[k]==="Yes"),no=cnt(C,x=>x.p[k]==="No");return[td(l),td(y,"num"),td(no,"num"),pctCell(y,y+no)]});
+  wards.forEach(w=>{const a=cnt(by(w),x=>x.c.overall==="Appropriate"),b=cnt(by(w),x=>x.c.overall==="Inappropriate");rows.push([el("td",null,el("strong",{text:"Overall · "+(w||"all wards")})),td(a,"num"),td(b,"num"),pctCell(a,a+b)])});
+  box.append(card("Dosing appropriateness",["Criterion","Yes","No","% appropriate"],rows));
+  const errs=ERR.slice(1).map(e=>[e,cnt(C,x=>x.p.err1===e)+cnt(C,x=>x.p.err2===e)]).filter(r=>r[1]>0).sort((a,b)=>b[1]-a[1]);
+  box.append(card("Error types",["Error","Count"],errs.length?errs.map(([e,c])=>[td(e),td(c,"num")]):[[td("No errors recorded yet"),td("")]]));
+  const DC=doses.map(d=>({d,c:calcD(d)}));
+  const ot=cnt(DC,x=>x.c.onTime==="Yes"),ol=cnt(DC,x=>x.c.onTime==="No");
+  const ar=[[td("Dose records"),td(DC.length,"num"),td(""),td("")],[td("Directly observed"),td(cnt(DC,x=>x.d.source==="Direct observation"),"num"),td(""),td("")],[td("Missed doses"),td(cnt(DC,x=>x.d.status==="Missed"),"num"),td(""),td("")],[td("On time (±60 min)"),td(ot,"num"),td(ol,"num"),pctCell(ot,ot+ol)]];
+  TECH.forEach(([k,l])=>{const y=cnt(DC,x=>x.d[k]==="Yes"),no=cnt(DC,x=>x.d[k]==="No");ar.push([td(l),td(y,"num"),td(no,"num"),pctCell(y,y+no)])});
+  const ay=cnt(DC,x=>x.c.all==="Yes"),an=cnt(DC,x=>x.c.all==="No");ar.push([el("td",null,el("strong",{text:"All steps correct"})),td(ay,"num"),td(an,"num"),pctCell(ay,ay+an)]);
+  box.append(card("Administration",["Measure","Yes / count","No","% compliant"],ar));
+  const oc=[["Bleeding event","bleed"],["Symptomatic VTE","vte"],["Platelets fell >50% or <100","pltFall"]].map(([l,k])=>[td(l),td(cnt(C,x=>x.p[k]==="Yes"),"num")]);
+  oc.push([td("Interventions accepted"),td(cnt(C,x=>x.p.interv==="Accepted"),"num")],[td("Interventions not accepted"),td(cnt(C,x=>x.p.interv==="Not accepted"),"num")]);
+  box.append(card("Outcomes during stay",["Outcome","Count"],oc));
+}
+
+// ---------- export ----------
+const asDate=s=>{if(!s)return"";const d=new Date(s.length===10?s+"T00:00":s);return isNaN(d)?s:d};
+$("exportBtn").onclick=async()=>{
+  if(typeof XLSX==="undefined"){toast("The Excel library did not load. Reload the page and try again.");return}
+  const dl=await claude.use("downloads");
+  if(!dl){toast("File downloads aren't available in this view");return}
+  const calcLabels={los:"Length of stay (days)",bmi:"BMI (kg/m²)",crcl:"CrCl Cockcroft-Gault (mL/min)",capLevel:"Caprini risk level",hrsSurg:"Hours: first dose vs surgery",durDays:"Inpatient duration (days)",overall:"Overall dosing assessment"};
+  // Patient sheet: schema order + auto-check columns before judgement
+  const cols=[];for(const[sec,fs]of P){if(sec==="Pharmacist judgement"){cols.push({k:"expDose",l:"Expected dose (mg)",calc:1},{k:"expFreq",l:"Expected frequency",calc:1},{k:"auto",l:"Auto dose check",calc:1})}fs.forEach(f=>cols.push(f))}
+  cols.push({k:"_by",l:"Data collector"},{k:"updatedAt",l:"Last updated"});
+  const dateCols=new Set(["admDate","disDate"]),dtCols=new Set(["surgDT","cathDT","firstDT","lastDT"]);
+  const sorted=[...patients].sort((a,b)=>a.code.localeCompare(b.code));
+  const pa=[cols.map(c=>c.l)];
+  for(const p of sorted){const c=calcP(p);pa.push(cols.map(f=>{
+    if(f.k==="_by")return names[p.updatedBy]||names[p.createdBy]||"";
+    if(f.calc){const v=c[f.k];return v==null||(f.k==="overall"&&v==="Incomplete"&&false)?"":v}
+    const v=p[f.k];if(v==null||v==="")return"";
+    if(dateCols.has(f.k)||dtCols.has(f.k))return asDate(v);
+    if(f.t==="num"){const x=n(v);return x==null?v:x}
+    return v}))}
+  const ws1=XLSX.utils.aoa_to_sheet(pa);
+  cols.forEach((f,ci)=>{if(dateCols.has(f.k)||dtCols.has(f.k)){for(let r=1;r<pa.length;r++){const a=XLSX.utils.encode_cell({r,c:ci});if(ws1[a]&&ws1[a].t==="n")ws1[a].z=dateCols.has(f.k)?"dd/mm/yyyy":"dd/mm/yyyy hh:mm"}}});
+  ws1["!cols"]=cols.map(c=>({wch:Math.min(30,Math.max(10,c.l.length*0.75))}));ws1["!freeze"]={xSplit:2,ySplit:1};
+  // Administration sheet
+  const dcols=[...DF.filter(f=>f.k!=="notes"),{k:"onTime",l:"On time (±60 min)",calc:1},{k:"correct",l:"Items correct",calc:1},{k:"assessed",l:"Items assessed",calc:1},{k:"score",l:"Technique score (%)",calc:1},{k:"all",l:"All steps correct",calc:1},{k:"notes",l:"Notes"},{k:"_by",l:"Data collector"}];
+  const wardOf=Object.fromEntries(patients.map(p=>[p.code,p.ward]));
+  dcols.splice(1,0,{k:"_ward",l:"Ward"});
+  const da=[dcols.map(c=>c.l)];
+  for(const d of [...doses].sort((a,b)=>(a.code+a.date).localeCompare(b.code+b.date))){const c=calcD(d);da.push(dcols.map(f=>{
+    if(f.k==="_ward")return wardOf[d.code]||"";if(f.k==="_by")return names[d.updatedBy]||names[d.createdBy]||"";
+    if(f.calc){const v=c[f.k];return v==null?"":v}
+    if(f.k==="date")return asDate(d.date);const v=d[f.k];return v==null?"":v}))}
+  const ws2=XLSX.utils.aoa_to_sheet(da);
+  for(let r=1;r<da.length;r++){const a=XLSX.utils.encode_cell({r,c:2});if(ws2[a]&&ws2[a].t==="n")ws2[a].z="dd/mm/yyyy";const s=XLSX.utils.encode_cell({r,c:dcols.findIndex(f=>f.k==="score")});if(ws2[s]&&ws2[s].t==="n")ws2[s].z="0%"}
+  ws2["!cols"]=dcols.map(c=>({wch:Math.min(26,Math.max(9,c.l.length*0.75))}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws1,"Patient Data");XLSX.utils.book_append_sheet(wb,ws2,"Administration");
+  const stamp=new Date().toISOString().slice(0,10);
+  const buf=XLSX.write(wb,{bookType:"xlsx",type:"array",cellDates:false});
+  try{await dl.save({filename:`Enoxaparin_study_data_${stamp}.xlsx`,data:new Blob([buf])});toast(`Exported ${sorted.length} patients and ${doses.length} dose records`)}
+  catch(e){if(e.code==="declined")toast("Export cancelled");else if(e.code==="rate_limited")toast("A save prompt is already open");else toast("Export failed: "+(e.message||e.code))}
+};
+
+// ---------- boot ----------
+async function resolveNames(){
+  if(!user)return;const ids=[...new Set([...patients,...doses].flatMap(x=>[x.createdBy,x.updatedBy]).filter(Boolean))];
+  if(!ids.length)return;try{const ps=await user.profiles(ids);for(const id of ids)names[id]=(ps[id]&&ps[id].name)||"Pharmacist"}catch(e){}
+  renderPatients();renderDoses();
+}
+renderPatients();renderDoses();
+status("info","Loading study data…");
+(async()=>{
+  [db,user]=await Promise.all([claude.use("db"),claude.use("user")]);
+  if(!db){status("bad","The shared study database isn't available in this view. Open the link while signed in to Claude.");$("newPatient").disabled=true;$("newDose").disabled=true;return}
+  if(user){try{uid=await user.id()}catch(e){}try{const w=await user.can("data.write");if(w===false)canWrite=false}catch(e){}}
+  if(!canWrite){$("newPatient").disabled=true;$("newDose").disabled=true}
+  let gotP=false,gotD=false;
+  const timer=setTimeout(()=>{if(!gotP||!gotD)status("warn","The study database can't be reached yet. Entries shown may be out of date.")},10000);
+  const done=()=>{if(gotP&&gotD){clearTimeout(timer);status(canWrite?"info":"warn",canWrite?"Use coded patient IDs only. Every entry is shared with the study team and saved as soon as you press Save.":"You have view-only access. Ask the study owner for Contributor access to add data.")}};
+  db.collection("patients").onSnapshot(s=>{patients=s.docs.map(d=>({_id:d.id,...d.data()}));if(!s.metadata.fromCache){gotP=true;done()}renderPatients();if(!$("v-summary").hidden)renderSummary();resolveNames()},e=>{clearTimeout(timer);status("bad","Patient records stopped loading. Reload the page to reconnect.")});
+  db.collection("doses").onSnapshot(s=>{doses=s.docs.map(d=>({_id:d.id,...d.data()}));if(!s.metadata.fromCache){gotD=true;done()}renderDoses();if(!$("v-summary").hidden)renderSummary();resolveNames()},e=>{clearTimeout(timer);status("bad","Dose records stopped loading. Reload the page to reconnect.")});
+})();
+})();
+</script>
