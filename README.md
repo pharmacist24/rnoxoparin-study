@@ -23,7 +23,7 @@
 
 1. In the repo, open Settings → Pages.
 2. Set Source to "Deploy from a branch", choose `main` / root, and save.
-3. The app will be served at `https://pharmacist24.github.io/enoxaparin-study/`.
+3. The app will be served at `https://pharmacist24.github.io/rnoxoparin-study/`.
 
 GitHub Pages on a free account requires a **public** repository. This is safe here: the repo contains only code, and no patient data.
 
