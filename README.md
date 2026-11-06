@@ -27,6 +27,18 @@
 
 GitHub Pages on a free account requires a **public** repository. This is safe here: the repo contains only code, and no patient data.
 
+## Install on a phone and work offline
+
+The website is an installable app (PWA).
+- **Android (Chrome):** open the site, then tap the phone-icon button in the header, or ⋮ → *Install app*.
+- **iPhone (Safari):** tap Share → *Add to Home Screen*.
+
+How offline works:
+- **Sign in once while online.** After that the app opens without internet, using the copy of the study data saved on the phone.
+- **Saving never waits for the internet.** Every save goes to the phone first and uploads automatically when the connection returns. The pill in the header shows *✓ Synced*, *3 to upload*, or *Offline*.
+- If two pharmacists use the same study code while offline, the second one is renumbered automatically when it uploads, and its dose records move with it.
+- Signing out deletes this phone's copy. If changes haven't uploaded yet, the app warns you first.
+
 ## Adding a pharmacist
 
 Do both steps in the Supabase dashboard:

@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#173f8a">
 <meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Enoxaparin">
 <title>Enoxaparin Study Collector</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
@@ -179,7 +185,11 @@ body.editing .toast{bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 .sheet-card p{margin:0 0 4px;color:var(--muted);font-size:14px}
 
 /* sign-in */
-body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signed-out #signOut{display:none}
+body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signed-out #signOut,body.signed-out #net{display:none}
+.net{appearance:none;border:0;font:800 12px var(--sans);padding:6px 10px;border-radius:999px;white-space:nowrap;cursor:pointer;background:rgba(255,255,255,.18);color:var(--on-brand);min-height:30px}
+.net.off{background:#ffd2c9;color:#6b1407}
+.net.pend{background:#ffe7a3;color:#4d3600}
+.net.sync{background:rgba(255,255,255,.3)}
 .login{min-height:calc(100vh - 140px);display:grid;place-items:center;padding-block:28px}
 .login form{width:100%;max-width:400px;display:grid;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px 20px;box-shadow:var(--shadow)}
 .login h2{margin:0;font-size:22px;font-weight:800}
@@ -230,6 +240,8 @@ header button.btn.primary{background:var(--on-brand);border-color:var(--on-brand
       <h1>Enoxaparin Study</h1>
       <p id="whoami">General Surgery &amp; Gynecology · pharmacist data collection</p>
     </div>
+    <button class="net" id="net" type="button" hidden></button>
+    <button class="btn icon" id="installBtn" type="button" hidden aria-label="Install app" title="Install app"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 7v7"/><path d="m9 11 3 3 3-3"/></svg></button>
     <button class="btn primary icon" id="exportBtn" type="button" aria-label="Export to Excel"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="export-label">Export to Excel</span></button>
     <button class="btn icon" id="signOut" type="button" aria-label="Sign out" title="Sign out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></button>
   </div>
@@ -438,8 +450,8 @@ function calcD(d){
 const $=id=>document.getElementById(id);
 function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k==="text")e.textContent=v;else e.setAttribute(k,v)}for(const c of kids)if(c!=null)e.append(c);return e}
 let toastT;function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
-function status(kind,msg,retry){const s=$("status");s.replaceChildren();if(!msg)return;const n=el("div",{class:"notice "+kind},el("span",{text:msg}));
-  if(retry){const b=el("button",{class:"btn",type:"button",text:"Try again",style:"margin-left:10px;min-height:36px"});b.onclick=retry;n.append(b)}s.append(n)}
+function status(kind,msg,retry,label){const s=$("status");s.replaceChildren();if(!msg)return;const n=el("div",{class:"notice "+kind},el("span",{text:msg}));
+  if(retry){const b=el("button",{class:"btn",type:"button",text:label||"Try again",style:"margin-left:10px;min-height:36px"});b.onclick=retry;n.append(b)}s.append(n)}
 
 const isSeg=f=>f.t==="sel"&&f.o&&f.o.length<=3;
 const isChk=f=>f.t==="chk";
@@ -506,7 +518,7 @@ $("tab-doses").onclick=()=>show("doses");
 $("tab-summary").onclick=()=>{renderSummary();show("summary")};
 
 function wardChip(w){return w?el("span",{class:"chip "+(w==="Gynecology"?"gy":"gs"),text:w==="Gynecology"?"Gynecology":"Gen. Surgery"}):null}
-function chip(text){const cls=text==="Appropriate"||text==="Match"||text==="Yes"||text==="Good"||text==="On time"?"ok":text==="N/A"?"inc":text==="Inappropriate"||text==="No"||text==="Poor"||text==="Missed"?"bad":text==="Review"?"warn":"inc";return el("span",{class:"chip "+cls,text})}
+function chip(text){const cls=text==="Appropriate"||text==="Match"||text==="Yes"||text==="Good"||text==="On time"?"ok":text==="N/A"?"inc":text==="Inappropriate"||text==="No"||text==="Poor"||text==="Missed"?"bad":text==="Review"||text==="Not uploaded"?"warn":"inc";return el("span",{class:"chip "+cls,text})}
 
 function itemCard(main,right,line2,meta,onOpen){
   const b=el("button",{class:"item",type:"button"},el("div",{class:"r1"},main,right));
@@ -523,7 +535,7 @@ function renderPatients(){
   for(const p of rows){
     const c=calcP(p);
     const meta=el("div",{class:"meta"},wardChip(p.ward),m("Rx",p.dose?`${p.dose} mg ${p.freq||""}`:"—"),m("CrCl",fmt(c.crcl)),m("Caprini",fmt(c.caprini)));
-    const by=names[p.updatedBy]||names[p.createdBy];if(by)meta.append(el("span",{text:"· "+by}));
+    const by=names[p.updatedBy]||names[p.createdBy];if(by)meta.append(el("span",{text:"· "+by}));if(p.pending)meta.append(chip("Not uploaded"));
     const who=el("span",{class:"who"},el("span",{class:"pname",text:p.name||p.code}),el("span",{class:"code",text:p.code}));
     box.append(itemCard(who,chip(c.overall),[p.indication,c.reason].filter(Boolean).join(" · "),meta,()=>openPatient(p)));
   }
@@ -538,7 +550,7 @@ function renderDoses(){
   const rows=[...doses].sort((a,b)=>((b.date||"")+(b.updatedAt||"")).localeCompare((a.date||"")+(a.updatedAt||"")));
   for(const d of rows){
     const c=calcD(d);
-    const meta=el("div",{class:"meta"},m("Technique",c.assessed?`${c.correct}/${c.assessed}`:"—"));
+    const meta=el("div",{class:"meta"},m("Technique",c.assessed?`${c.correct}/${c.assessed}`:"—"));if(d.pending)meta.append(chip("Not uploaded"));
     const pt=patients.find(x=>x.code===d.code);
     const who=el("span",{class:"who"},el("span",{class:"pname",text:(pt&&pt.name)||d.code}),el("span",{class:"code",text:d.code}));
     box.append(itemCard(who,c.tech?chip(c.tech):chip(d.status||"—"),
@@ -591,22 +603,20 @@ function errText(e){
   if(/fetch|network/i.test(e.message||""))return"No connection. Check the internet and try again.";
   return e.message||String(e);
 }
-async function sbDel(table,id){const{error}=await sb.from(table).delete().eq("id",id);if(error)throw new Error(errText(error));await loadAll()}
-$("saveP").onclick=async()=>{
+async function sbDel(table,id){
+  const code=table==="patients"?(patients.find(x=>x._id===id)||{}).code:undefined;
+  enqueue({op:"delete",table,id,code});
+}
+const savedMsg=what=>navigator.onLine?`Saved ${what}`:`Saved ${what} on this phone. It will upload when you're online.`;
+$("saveP").onclick=()=>{
   const p=readForm(PF,"p_");
   if(!p.name||!p.ward||!p.code){toast("Patient name, ward and study code are required");return}
   if(!session){toast("Sign in to save");return}
   const{code,ward,...rest}=p;
-  const btn=$("saveP");if(btn.dataset.busy)return;btn.dataset.busy="1";btn.disabled=true;btn.textContent="Saving…";
-  try{
-    const q=editing?sb.from("patients").update({ward,data:rest}).eq("id",editing._id).select("id")
-                   :sb.from("patients").insert({code,ward,data:rest}).select("id");
-    const{data,error}=await q;
-    if(error)throw error;
-    if(!data||!data.length)throw{code:"42501"};
-    toast(`Saved ${p.name}`);await loadAll();show("patients");
-  }catch(e){toast(errText(e))}
-  finally{btn.dataset.busy="";btn.textContent="Save patient";btn.disabled=!canWrite}
+  if(!editing&&patients.some(x=>x.code===code)){toast(`Study code ${code} is already used. Choose another.`);return}
+  const id=editing?editing._id:uuid();
+  enqueue({op:"upsert",table:"patients",id,isNew:!editing,row:{code:editing?editing.code:code,ward,data:rest}});
+  toast(savedMsg(p.name));show("patients");
 };
 
 // ---------- dose editor ----------
@@ -635,21 +645,14 @@ function openDose(d){
 }
 $("newDose").onclick=()=>{if(!patients.length){toast("Enroll a patient first");return}openDose(null)};
 $("dBack").onclick=()=>show("doses");$("cancelD").onclick=()=>show("doses");
-$("saveD").onclick=async()=>{
+$("saveD").onclick=()=>{
   const d=readForm(DF,"d_");
   if(!d.code||!d.date){toast("Patient and date are required");return}
   if(!session){toast("Sign in to save");return}
   const{code,date,...rest}=d;
-  const btn=$("saveD");if(btn.dataset.busy)return;btn.dataset.busy="1";btn.disabled=true;btn.textContent="Saving…";
-  try{
-    const row={patient_code:code,dose_date:date,data:rest};
-    const q=editingDose?sb.from("doses").update(row).eq("id",editingDose._id).select("id"):sb.from("doses").insert(row).select("id");
-    const{data,error}=await q;
-    if(error)throw error;
-    if(!data||!data.length)throw{code:"42501"};
-    toast("Dose record saved");await loadAll();show("doses");
-  }catch(e){toast(errText(e))}
-  finally{btn.dataset.busy="";btn.textContent="Save dose";btn.disabled=!canWrite}
+  const id=editingDose?editingDose._id:uuid();
+  enqueue({op:"upsert",table:"doses",id,isNew:!editingDose,row:{patient_code:code,dose_date:date,data:rest}});
+  toast(savedMsg("dose record"));show("doses");
 };
 
 // ---------- summary ----------
@@ -758,77 +761,179 @@ async function tabLock(name,acquireTimeout,fn){
 const sb=window.supabase?window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,lock:tabLock},global:{fetch:timedFetch}}):null;
 let session=null,channel=null,outP=null; // outP: pending sign-out; a new sign-in waits for it
 const who=e=>e?(names[e]||e.split("@")[0]):"";
-function rowP(r){return{...(r.data||{}),code:r.code,ward:r.ward,_id:r.id,createdBy:r.created_by_email,updatedBy:r.updated_by_email,updatedAt:r.updated_at}}
-function rowD(r){return{...(r.data||{}),code:r.patient_code,date:r.dose_date,_id:r.id,createdBy:r.created_by_email,updatedBy:r.updated_by_email,updatedAt:r.updated_at}}
-async function loadAll(){
-  const[a,b,t]=await Promise.all([sb.from("patients").select("*"),sb.from("doses").select("*"),sb.from("team_members").select("email,display_name")]);
-  if(a.error||b.error)throw a.error||b.error;
-  names={};(t.data||[]).forEach(m=>names[m.email]=m.display_name||m.email.split("@")[0]);
-  patients=a.data.map(rowP);doses=b.data.map(rowD);
+function rowP(r){return{...(r.data||{}),code:r.code,ward:r.ward,_id:r.id,createdBy:r.created_by_email,updatedBy:r.updated_by_email,updatedAt:r.updated_at,pending:!!r._pending}}
+function rowD(r){return{...(r.data||{}),code:r.patient_code,date:r.dose_date,_id:r.id,createdBy:r.created_by_email,updatedBy:r.updated_by_email,updatedAt:r.updated_at,pending:!!r._pending}}
+
+// ---------- offline store: a copy of the data and a queue of unsent changes, kept on this phone ----------
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+let me="";const K=n=>`enox:${me}:${n}`;
+let srv={patients:[],doses:[],names:{},at:0},outbox=[],failed=[];
+function loadLocal(){srv=LS.get(K("cache"),{patients:[],doses:[],names:{},at:0});outbox=LS.get(K("outbox"),[]);failed=LS.get(K("failed"),[])}
+function saveQueue(){LS.set(K("outbox"),outbox);LS.set(K("failed"),failed);netPill()}
+const uuid=()=>crypto.randomUUID?crypto.randomUUID():"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==="x"?r:(r&3|8)).toString(16)});
+const isNet=e=>!navigator.onLine||!e||e.name==="AbortError"||!e.code||/fetch|network|load failed|timed out|abort/i.test(String(e.message||""));
+function view(){
+  const P=new Map(srv.patients.map(r=>[r.id,r])),Dm=new Map(srv.doses.map(r=>[r.id,r]));
+  for(const op of outbox){const M=op.table==="patients"?P:Dm;
+    if(op.op==="delete"){M.delete(op.id);if(op.table==="patients"&&op.code)for(const[k,r]of Dm)if(r.patient_code===op.code)Dm.delete(k)}
+    else{const old=M.get(op.id)||{};M.set(op.id,{...old,...op.row,id:op.id,created_by_email:old.created_by_email||me,updated_by_email:me,updated_at:new Date(op.ts).toISOString(),_pending:true})}}
+  names={...(srv.names||{})};
+  patients=[...P.values()].map(rowP);doses=[...Dm.values()].map(rowD);
   for(const x of[...patients,...doses])for(const e of[x.createdBy,x.updatedBy])if(e&&!names[e])names[e]=e.split("@")[0];
   renderPatients();renderDoses();if(!$("v-summary").hidden)renderSummary();
 }
+function enqueue(op){
+  op.ts=Date.now();
+  if(op.op==="upsert"){
+    const i=outbox.findIndex(o=>o.op==="upsert"&&o.table===op.table&&o.id===op.id);
+    if(i>=0){outbox[i].row={...outbox[i].row,...op.row};outbox[i].ts=op.ts}else outbox.push(op);
+  }else{
+    const onServer=srv[op.table].some(r=>r.id===op.id);
+    outbox=outbox.filter(o=>o.id!==op.id);
+    if(op.table==="patients"&&op.code)outbox=outbox.filter(o=>!(o.table==="doses"&&o.row&&o.row.patient_code===op.code));
+    if(onServer)outbox.push(op);
+  }
+  saveQueue();view();sync();
+}
+async function fetchServer(){
+  const[a,b,t]=await Promise.all([sb.from("patients").select("*"),sb.from("doses").select("*"),sb.from("team_members").select("email,display_name")]);
+  if(a.error)throw a.error;if(b.error)throw b.error;
+  const nm={};(t.data||[]).forEach(m=>nm[m.email]=m.display_name||m.email.split("@")[0]);
+  srv={patients:a.data,doses:b.data,names:nm,at:Date.now()};
+  if(!LS.set(K("cache"),srv))toast("This phone's storage is full. The offline copy could not be updated.");
+}
+async function loadAll(){await fetchServer();view()}
+let syncing=false;
+async function runOp(op){
+  const r=op.op==="upsert"?await sb.from(op.table).upsert({id:op.id,...op.row},{onConflict:"id"}).select("id"):await sb.from(op.table).delete().eq("id",op.id);
+  if(r.error)throw r.error;
+  if(op.op==="upsert"&&(!r.data||!r.data.length))throw{code:"42501",message:"row-level security"};
+}
+async function recode(op){ // a colleague used the same study code while this phone was offline
+  const{data,error}=await sb.from("patients").select("code");if(error)return false;
+  const pre=(String(op.row.code).match(/^([A-Za-z]+)-/)||[0,"GS"])[1],re=new RegExp("^"+pre+"-(\\d+)$");let mx=0;
+  for(const r of data){const m=String(r.code||"").match(re);if(m)mx=Math.max(mx,+m[1])}
+  for(const o of outbox){const m=String((o.row||{}).code||"").match(re);if(m&&o!==op)mx=Math.max(mx,+m[1])}
+  const old=op.row.code,nw=`${pre}-${String(mx+1).padStart(3,"0")}`;
+  op.row.code=nw;for(const o of outbox)if(o.table==="doses"&&o.row&&o.row.patient_code===old)o.row.patient_code=nw;
+  saveQueue();toast(`Study code ${old} was already used by a colleague. Changed to ${nw}.`);return true;
+}
+async function sync(){
+  if(syncing||!session||!outbox.length||!navigator.onLine){netPill();return}
+  syncing=true;netPill();let sent=0;
+  try{
+    while(outbox.length&&session){
+      const op=outbox[0];
+      try{await runOp(op);outbox.shift();sent++;saveQueue()}
+      catch(e){
+        if(isNet(e))break;
+        if(e.code==="23505"&&op.table==="patients"&&op.isNew&&await recode(op))continue;
+        failed.push({...op,error:errText(e)});outbox.shift();saveQueue();
+      }
+    }
+  }finally{syncing=false}
+  if(sent){try{await withTimeout(fetchServer(),20000)}catch(e){}}
+  view();netPill();
+  if(sent&&!outbox.length)toast(`${sent} change${sent>1?"s":""} uploaded`);
+  if(failed.length)status("warn",`${failed.length} change${failed.length>1?"s":""} could not be uploaded: ${failed[failed.length-1].error}`,()=>{failed=[];saveQueue();status("")},"Dismiss");
+}
+setInterval(()=>{if(session&&outbox.length)sync()},30000);
+function netPill(){
+  const b=$("net");if(!session){b.hidden=true;return}b.hidden=false;
+  const n=outbox.length;
+  if(!navigator.onLine){b.className="net off";b.textContent=n?`Offline · ${n}`:"Offline";b.title=n?`${n} change(s) saved on this phone, waiting for internet`:"No internet. You can keep working; changes upload later."}
+  else if(syncing){b.className="net sync";b.textContent="Uploading…";b.title="Uploading changes"}
+  else if(n){b.className="net pend";b.textContent=`${n} to upload`;b.title="Tap to upload now"}
+  else{b.className="net ok";b.textContent="✓ Synced";b.title="Everything is uploaded"}
+}
+$("net").onclick=()=>{if(navigator.onLine)sync();else toast("No internet. Changes will upload automatically when you're back online.")};
+const ago=t=>{const m=Math.round((Date.now()-t)/60000);return m<1?"just now":m<60?`${m} min ago`:m<1440?`${Math.round(m/60)} h ago`:`${Math.round(m/1440)} days ago`};
+
+// ---------- start, sign-in, sign-out ----------
 let reloadT;function scheduleReload(){clearTimeout(reloadT);reloadT=setTimeout(()=>loadAll().catch(()=>{}),500)}
 function showLogin(){
   document.body.classList.add("signed-out");document.body.classList.remove("editing");$("v-login").hidden=false;
   $("lgBtn").disabled=false;$("lgBtn").textContent="Sign in";status("");
-  patients=[];doses=[];renderPatients();renderDoses();
+  patients=[];doses=[];renderPatients();renderDoses();netPill();
   if(channel){sb.removeChannel(channel);channel=null}
 }
-let gen=0;
+function setButtons(){$("newPatient").disabled=!canWrite;$("newDose").disabled=!canWrite}
+const NAMES_NOTE="Patient names are visible only to the study team. Use “Without names” when you export for analysis.";
+let gen=0,loaded=false;
 async function startApp(){
   const my=++gen;const stale=()=>my!==gen||!session;
   document.body.classList.remove("signed-out");$("v-login").hidden=true;
   if($("v-patients").hidden&&$("v-doses").hidden&&$("v-summary").hidden&&$("v-editor").hidden&&$("v-dose-editor").hidden)show("patients");
-  const email=session.user.email||"";
-  status("info","Loading study data…");
+  const email=(session.user.email||"").toLowerCase();me=email;loadLocal();
+  const wasMember=LS.get(K("member"),false)===true;
+  if(wasMember){canWrite=true;setButtons();view()} // open instantly from the copy on this phone
+  $("whoami").textContent=`Signed in as ${who(email)}`;netPill();
+  if(!navigator.onLine&&wasMember){loaded=true;status("warn",`You're offline. Showing the copy saved on this phone${srv.at?` (updated ${ago(srv.at)})`:""}. New entries are saved here and upload automatically.`);return}
+  status("info",srv.at?"Updating…":"Loading study data…");
   try{
-    const m=await withTimeout(sb.rpc("is_team_member"),20000);
+    const m=await withTimeout(sb.rpc("is_team_member"),15000);
     if(stale())return;
     if(m.error)throw m.error;
-    canWrite=m.data===true;
-    $("newPatient").disabled=!canWrite;$("newDose").disabled=!canWrite;
-    if(!canWrite){status("warn",`${email} is signed in but is not on the study team list. Ask the study owner to add this email.`);return}
-    await withTimeout(loadAll(),25000);
+    canWrite=m.data===true;LS.set(K("member"),canWrite);setButtons();
+    if(!canWrite){patients=[];doses=[];renderPatients();renderDoses();status("warn",`${email} is signed in but is not on the study team list. Ask the study owner to add this email.`);return}
+    await withTimeout(fetchServer(),25000);
     if(stale())return;
-    $("whoami").textContent=`Signed in as ${who(email.toLowerCase())}`;
-    status("info","Patient names are visible only to the study team. Use “Without names” when you export for analysis.");
+    view();loaded=true;$("whoami").textContent=`Signed in as ${who(email)}`;
+    status("info",NAMES_NOTE);
     if(!channel){channel=sb.channel("study").on("postgres_changes",{event:"*",schema:"public",table:"patients"},scheduleReload).on("postgres_changes",{event:"*",schema:"public",table:"doses"},scheduleReload).subscribe()}
-    loaded=true;
-  }catch(e){if(!stale())status("bad","Could not load the study data. "+errText(e),()=>startApp())}
+    sync();
+  }catch(e){
+    if(stale())return;
+    if(isNet(e)&&wasMember){loaded=true;status("warn",`Weak or no internet. Showing the copy saved on this phone${srv.at?` (updated ${ago(srv.at)})`:""}. New entries upload automatically.`,()=>startApp())}
+    else status("bad","Could not load the study data. "+errText(e),()=>startApp());
+  }
 }
-let loaded=false;
-// When the phone wakes up or the tab comes back, refresh quietly instead of needing a page reload
 document.addEventListener("visibilitychange",()=>{
   if(document.visibilityState!=="visible"||!session)return;
   if(!loaded){startApp();return}
-  withTimeout(loadAll(),20000).then(()=>{if($("status").querySelector(".notice.bad"))status("info","Data refreshed.")})
-    .catch(e=>status("warn","Couldn't refresh the data. "+errText(e),()=>startApp()));
+  sync();if(navigator.onLine)withTimeout(loadAll(),20000).catch(()=>{});
 });
-window.addEventListener("online",()=>{if(session)startApp()});
+window.addEventListener("online",()=>{netPill();if(session){toast("Back online");startApp()}});
+window.addEventListener("offline",()=>{netPill();if(session)status("warn","You're offline. Keep working: entries are saved on this phone and upload when the internet returns.")});
 renderPatients();renderDoses();
-if(!sb){document.body.classList.add("signed-out");$("lgErr").textContent="The app could not load its database library. Check the connection and reload.";$("lgBtn").disabled=true}
+if(!sb){document.body.classList.add("signed-out");$("lgErr").textContent="The app could not load its database library. Connect to the internet once and reload.";$("lgBtn").disabled=true}
 else{
   $("loginForm").addEventListener("submit",async e=>{
     e.preventDefault();$("lgErr").textContent="";
     const email=$("lgEmail").value.trim(),password=$("lgPass").value;
     if(!email||!password){$("lgErr").textContent="Enter your email and password.";return}
+    if(!navigator.onLine){$("lgErr").textContent="Signing in needs internet. After that, the app keeps working offline.";return}
     if($("lgBtn").disabled)return;
     $("lgBtn").disabled=true;$("lgBtn").textContent="Signing in…";
     let data,error;
     try{if(outP)await outP;({data,error}=await withTimeout(sb.auth.signInWithPassword({email,password}),20000))}catch(e){error=e}
     $("lgBtn").disabled=false;$("lgBtn").textContent="Sign in";
-    if(error){$("lgErr").textContent=/invalid/i.test(error.message)?"Email or password is incorrect.":errText(error);return}
+    if(error){$("lgErr").textContent=/invalid/i.test(error.message||"")?"Email or password is incorrect.":errText(error);return}
     session=data.session;$("lgPass").value="";startApp();
   });
-  $("signOut").onclick=()=>{if(outP)return;
-    gen++;session=null;loaded=false;canWrite=false;showLogin();$("whoami").textContent="General Surgery & Gynecology · pharmacist data collection";
+  function doSignOut(){
+    gen++;
+    LS.del(K("cache"));LS.del(K("member"));LS.del(K("outbox"));LS.del(K("failed"));outbox=[];failed=[];srv={patients:[],doses:[],names:{},at:0};
+    session=null;loaded=false;canWrite=false;showLogin();$("whoami").textContent="General Surgery & Gynecology · pharmacist data collection";
     outP=withTimeout(sb.auth.signOut({scope:"local"}),5000).catch(()=>{}).then(()=>{try{for(const k of Object.keys(localStorage))if(k.startsWith("sb-"))localStorage.removeItem(k)}catch(e){}}).finally(()=>{outP=null});
+  }
+  $("signOut").onclick=()=>{
+    if(outP)return;
+    if(outbox.length){status("warn",`${outbox.length} change${outbox.length>1?"s have":" has"} not been uploaded yet. Connect to the internet first, or they will be lost.`,()=>doSignOut(),"Sign out anyway");return}
+    doSignOut();
   };
   sb.auth.onAuthStateChange((ev,s)=>{if(ev==="SIGNED_OUT"){if(session&&!outP){session=null;loaded=false;gen++;showLogin()}}else if(s)session=s});
   withTimeout(sb.auth.getSession(),10000).then(({data})=>{session=data.session;session?startApp():showLogin()})
     .catch(()=>{showLogin();$("lgErr").textContent="Couldn't restore your sign-in. Please sign in again."});
 }
+
+// ---------- installable app ----------
+let installEvt=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;$("installBtn").hidden=false});
+$("installBtn").onclick=async()=>{if(!installEvt)return;installEvt.prompt();try{await installEvt.userChoice}catch(e){}installEvt=null;$("installBtn").hidden=true};
+window.addEventListener("appinstalled",()=>{$("installBtn").hidden=true;toast("App installed")});
+if("serviceWorker" in navigator&&location.protocol.startsWith("http"))window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 })();
 </script>
 </body>

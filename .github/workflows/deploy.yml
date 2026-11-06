@@ -24,6 +24,7 @@ jobs:
           curl -fsSL https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js -o vendor/supabase.min.js
           curl -fsSL https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js -o vendor/xlsx.full.min.js
           ls -la vendor
+          sed -i "s/__BUILD__/${GITHUB_SHA::7}/" sw.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
