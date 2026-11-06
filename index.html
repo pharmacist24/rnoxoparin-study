@@ -219,7 +219,7 @@ body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signe
 
   <section id="v-patients">
     <div class="bar">
-      <input class="search" id="search" type="search" placeholder="Search code or procedure" aria-label="Search patients">
+      <input class="search" id="search" type="search" placeholder="Search patient code" aria-label="Search patients">
       <select id="wardFilter" aria-label="Filter by ward">
         <option value="">All wards</option><option>General Surgery</option><option>Gynecology</option>
       </select>
@@ -277,28 +277,24 @@ body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signe
 <script>
 (function(){
 const YN=["Yes","No"], YNA=["Yes","No","N/A"];
-const ERR=["None","Unindicated use","Indicated but not given","Dose too high","Dose too low","Wrong frequency","No renal adjustment","Wrong timing vs surgery","Wrong timing vs spinal/epidural","Duration too short","Duration too long","Monitoring not done","Given despite contraindication","Other"];
-// Lean schema: only variables used in published enoxaparin DUE studies and needed for the results tables
+// Minimal schema: raw data only. Appropriateness is calculated by the app from the dosing rules.
+const REASONS=["Given despite contraindication","Unindicated (Caprini < 3)","No renal adjustment","Wrong frequency","Dose too high","Dose too low","Too close to surgery","Too close to spinal/epidural","First dose > 24 h after surgery"];
 const P=[
  ["Patient",[
   {k:"code",l:"Patient code",t:"text",req:1,h:"GS-001 / GY-001. No names."},
   {k:"ward",l:"Ward",t:"sel",o:["General Surgery","Gynecology"],req:1},
-  {k:"admDate",l:"Admission date",t:"date"},
   {k:"age",l:"Age (years)",t:"num"},
   {k:"sex",l:"Sex",t:"sel",o:["Male","Female"]},
   {k:"weight",l:"Weight (kg)",t:"num"},
-  {k:"height",l:"Height (cm)",t:"num",h:"Needed for BMI (obesity dosing)"},
+  {k:"height",l:"Height (cm)",t:"num"},
   {k:"bmi",l:"BMI (kg/m²)",calc:1},
   {k:"scr",l:"Serum creatinine (mg/dL)",t:"num",h:"µmol/L ÷ 88.4"},
   {k:"crcl",l:"CrCl (mL/min)",calc:1}]],
  ["Surgery & risk",[
-  {k:"procedure",l:"Diagnosis / procedure",t:"text"},
   {k:"surgType",l:"Surgery",t:"sel",o:["Major","Minor","No surgery"]},
-  {k:"malignancy",l:"Cancer",t:"sel",o:YN},
   {k:"anesthesia",l:"Anesthesia",t:"sel",o:["General","Spinal/epidural","None/local"]},
   {k:"surgDT",l:"Surgery date & time",t:"dt"},
-  {k:"caprini",l:"Caprini score",t:"num",h:"Calculated by you from the file"},
-  {k:"capLevel",l:"Caprini risk",calc:1},
+  {k:"caprini",l:"Caprini score",t:"num",h:"Number, e.g. 5"},
   {k:"bleedRisk",l:"Contraindication / high bleeding risk",t:"sel",o:YN,h:"Active bleeding, platelets <50, recent brain bleed"}]],
  ["Enoxaparin order",[
   {k:"indication",l:"Indication",t:"sel",o:["Prophylaxis","Treatment"]},
@@ -306,17 +302,7 @@ const P=[
   {k:"freq",l:"Frequency",t:"sel",o:["OD","BID"]},
   {k:"firstDT",l:"First dose date & time",t:"dt"},
   {k:"hrsSurg",l:"Hours: first dose vs surgery",calc:1},
-  {k:"duration",l:"Days on enoxaparin",t:"num",h:"Count at discharge or stop"},
-  {k:"antiplt",l:"Aspirin / clopidogrel / NSAID",t:"sel",o:YN},
-  {k:"pltMon",l:"Platelets checked during therapy",t:"sel",o:YN}]],
- ["Pharmacist assessment",[
-  {k:"jInd",l:"Indication appropriate",t:"sel",o:YNA},
-  {k:"jDose",l:"Dose & frequency appropriate",t:"sel",o:YNA},
-  {k:"jTime",l:"Timing appropriate",t:"sel",o:YNA,h:"vs surgery and spinal/epidural"},
-  {k:"jDur",l:"Duration appropriate",t:"sel",o:YNA},
-  {k:"jMon",l:"Monitoring appropriate",t:"sel",o:YNA},
-  {k:"overall",l:"Overall",calc:1},
-  {k:"err1",l:"Main error",t:"sel",o:ERR}]],
+  {k:"duration",l:"Days on enoxaparin",t:"num"}]],
  ["Outcome during stay",[
   {k:"bleed",l:"Bleeding",t:"sel",o:["None","Minor","Major"]},
   {k:"thrombo",l:"Thrombocytopenia",t:"sel",o:YN,h:"Platelets <100 or fall >50%"},
@@ -337,18 +323,30 @@ const PF=P.flatMap(s=>s[1]), DF=D.flatMap(s=>s[1]);
 const n=v=>{if(v===""||v==null)return null;const x=parseFloat(v);return isFinite(x)?x:null};
 const r1=x=>Math.round(x*10)/10;
 function calcP(p){
-  const o={};const w=n(p.weight),h=n(p.height),age=n(p.age),scr=n(p.scr),cap=n(p.caprini);
+  const o={};const w=n(p.weight),h=n(p.height),age=n(p.age),scr=n(p.scr),cap=n(p.caprini),dose=n(p.dose);
   if(w&&h)o.bmi=r1(w/Math.pow(h/100,2));
   if(age!=null&&w&&scr&&p.sex)o.crcl=Math.round((140-age)*w/(72*scr)*(p.sex==="Female"?0.85:1));
-  if(cap!=null)o.capLevel=cap<=2?"Low":cap<=4?"Moderate":"High";
   if(p.firstDT&&p.surgDT)o.hrsSurg=r1((Date.parse(p.firstDT)-Date.parse(p.surgDT))/36e5);
-  const renal=o.crcl!=null&&o.crcl<30;
-  if(p.indication&&w){o.expDose=p.indication==="Prophylaxis"?(renal?30:40):Math.round(w)}
-  if(p.indication){o.expFreq=p.indication==="Prophylaxis"?(renal?"OD":(o.bmi!=null&&o.bmi>=40?"BID":"OD")):(renal?"OD":"BID")}
-  const dose=n(p.dose);
-  if(dose!=null&&o.expDose!=null&&p.freq)o.auto=(Math.abs(dose-o.expDose)<=0.1*o.expDose&&p.freq===o.expFreq)?"Match":"Review";
-  const js=["jInd","jDose","jTime","jDur","jMon"].map(k=>p[k]);
-  o.overall=js.some(v=>!v)?"Incomplete":js.includes("No")?"Inappropriate":"Appropriate";
+  const renal=o.crcl!=null&&o.crcl<30, proph=p.indication==="Prophylaxis";
+  // Indication
+  if(p.indication&&p.bleedRisk&&(!proph||cap!=null)){
+    o.indR=p.bleedRisk==="Yes"||(proph&&cap<3)?"Inappropriate":"Appropriate";
+    if(p.bleedRisk==="Yes")o.indWhy=REASONS[0];else if(o.indR==="Inappropriate")o.indWhy=REASONS[1];
+  }
+  // Dose & frequency: prophylaxis 40 mg OD (30 mg OD if CrCl<30; 40 mg BID if BMI>=40); treatment 1 mg/kg BID or 1.5 mg/kg OD (1 mg/kg OD if CrCl<30)
+  if(p.indication&&w&&dose!=null&&p.freq){
+    const ed=proph?(renal?30:40):w, ef=proph?(renal?"OD":(o.bmi!=null&&o.bmi>=40?"BID":"OD")):(renal?"OD":"BID");
+    const ok=(Math.abs(dose-ed)<=0.1*ed&&p.freq===ef)||(!proph&&!renal&&p.freq==="OD"&&Math.abs(dose-1.5*w)<=0.15*w);
+    o.doseR=ok?"Appropriate":"Inappropriate";o.expected=`${Math.round(ed)} mg ${ef}`;
+    if(!ok)o.doseWhy=renal?REASONS[2]:p.freq!==ef&&!( !proph&&p.freq==="OD")?REASONS[3]:dose>ed?REASONS[4]:REASONS[5];
+  }
+  // Timing vs surgery (prophylaxis only): >=12 h before, or 12-24 h after
+  if(p.indication==="Treatment"||p.surgType==="No surgery")o.timR="N/A";
+  else if(o.hrsSurg!=null){const H=o.hrsSurg;const ok=H<=-12||(H>=12&&H<=24);o.timR=ok?"Appropriate":"Inappropriate";
+    if(!ok)o.timWhy=H>24?REASONS[8]:p.anesthesia==="Spinal/epidural"?REASONS[7]:REASONS[6]}
+  const rs=[o.indR,o.doseR,o.timR];
+  o.overall=rs.some(v=>!v)?"Incomplete":rs.includes("Inappropriate")?"Inappropriate":"Appropriate";
+  o.reason=o.overall==="Inappropriate"?[o.indWhy,o.doseWhy,o.timWhy].filter(Boolean).join("; "):"";
   return o;
 }
 function calcD(d){
@@ -419,7 +417,7 @@ $("tab-patients").onclick=()=>show("patients");
 $("tab-doses").onclick=()=>show("doses");
 $("tab-summary").onclick=()=>{renderSummary();show("summary")};
 
-function chip(text){const cls=text==="Appropriate"||text==="Match"||text==="Yes"||text==="Good"||text==="On time"?"ok":text==="Inappropriate"||text==="No"||text==="Poor"||text==="Missed"?"bad":text==="Review"?"warn":"inc";return el("span",{class:"chip "+cls,text})}
+function chip(text){const cls=text==="Appropriate"||text==="Match"||text==="Yes"||text==="Good"||text==="On time"?"ok":text==="N/A"?"inc":text==="Inappropriate"||text==="No"||text==="Poor"||text==="Missed"?"bad":text==="Review"?"warn":"inc";return el("span",{class:"chip "+cls,text})}
 
 function itemCard(main,right,line2,meta,onOpen){
   const b=el("button",{class:"item",type:"button"},el("div",{class:"r1"},main,right));
@@ -430,15 +428,14 @@ function m(label,val){return el("span",null,label+" ",el("b",{text:val}))}
 function renderPatients(){
   $("nP").textContent=patients.length;
   const q=$("search").value.trim().toLowerCase(),w=$("wardFilter").value;
-  const rows=patients.filter(p=>(!w||p.ward===w)&&(!q||(p.code||"").toLowerCase().includes(q)||(p.procedure||"").toLowerCase().includes(q)))
+  const rows=patients.filter(p=>(!w||p.ward===w)&&(!q||(p.code||"").toLowerCase().includes(q)))
     .sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||""));
   const box=$("pRows");box.replaceChildren();
   for(const p of rows){
     const c=calcP(p);
     const meta=el("div",{class:"meta"},m("Rx",p.dose?`${p.dose} mg ${p.freq||""}`:"—"),m("CrCl",fmt(c.crcl)));
-    if(c.auto)meta.append(chip(c.auto));
     const by=names[p.updatedBy]||names[p.createdBy];if(by)meta.append(el("span",{text:"· "+by}));
-    box.append(itemCard(el("span",{class:"code",text:p.code}),chip(c.overall),[p.ward,p.procedure,p.indication].filter(Boolean).join(" · "),meta,()=>openPatient(p)));
+    box.append(itemCard(el("span",{class:"code",text:p.code}),chip(c.overall),[p.ward,p.indication,c.reason].filter(Boolean).join(" · "),meta,()=>openPatient(p)));
   }
   $("pEmpty").hidden=rows.length>0;
   $("pEmpty").firstChild.textContent=patients.length?"No patients match this filter":"No patients yet";
@@ -464,10 +461,8 @@ function updateRx(){
   const p=readForm(PF,"p_"),c=calcP(p);
   for(const f of PF)if(f.calc)$("p_"+f.k).value=c[f.k]!=null?c[f.k]:"";
   const rx=$("rx");rx.replaceChildren();
-  const cells=[["CrCl",c.crcl!=null?c.crcl+" mL/min":"—"],["BMI",fmt(c.bmi)],["Expected",c.expDose!=null?`${c.expDose} mg ${c.expFreq}`:"—"],["Prescribed",p.dose?`${p.dose} mg ${p.freq||""}`:"—"],["Dose vs surgery",c.hrsSurg!=null?c.hrsSurg+" h":"—"]];
-  for(const[k,v]of cells)rx.append(el("div",null,el("span",{text:k}),el("b",{text:v})));
-  const a=el("div",null,el("span",{text:"Auto check"}));a.append(c.auto?chip(c.auto):el("b",{text:"—"}));rx.append(a);
-  const o=el("div",null,el("span",{text:"Overall"}));o.append(chip(c.overall));rx.append(o);
+  for(const[k,v]of[["Indication",c.indR],["Dose",c.doseR],["Timing",c.timR],["Overall",c.overall]]){const d=el("div",null,el("span",{text:k}));d.append(v?chip(v):el("b",{text:"—"}));rx.append(d)}
+  if(c.reason){const d=el("div",{style:"grid-column:1/-1"},el("span",{text:"Why"}),el("b",{text:c.reason+(c.doseWhy&&c.expected?` (expected ${c.expected})`:"")}));rx.append(d)}
   prog(P,"p_",p);
 }
 $("pForm").addEventListener("input",updateRx);$("pForm").addEventListener("change",updateRx);
@@ -475,7 +470,7 @@ function openPatient(p){
   editing=p||null;fillForm(PF,"p_",p);
   $("p_code").readOnly=!!p;
   $("edTitle").textContent=p?`Patient ${p.code}`:"New patient";
-  $("edMsg").textContent=canWrite?"Shaded fields calculate automatically. The auto check is a screening flag; your judgement columns decide.":"Your email is not on the study team yet, so changes cannot be saved.";
+  $("edMsg").textContent=canWrite?"Enter the data only. The result (appropriate or not) is calculated automatically from the dosing rules.":"Your email is not on the study team yet, so changes cannot be saved.";
   $("saveP").disabled=!canWrite;
   const dz=$("delZone");dz.replaceChildren();
   if(p&&canWrite){const b=el("button",{class:"btn danger",type:"button",text:"Delete"});b.onclick=()=>confirmDel(dz,`Delete ${p.code} and all its dose records?`,async()=>{await sbDel("patients",p._id);toast(`Deleted ${p.code}`);show("patients")});dz.append(b)}
@@ -575,25 +570,24 @@ function renderSummary(){
   const wards=["","General Surgery","Gynecology"];
   const cnt=(arr,f)=>arr.filter(f).length;
   const mean=(arr,k)=>{const v=arr.map(x=>n(x.p[k])).filter(x=>x!=null);return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):"—"};
-  const base=[["Patients enrolled",x=>true],["Female",x=>x.p.sex==="Female"],["Major surgery",x=>x.p.surgType==="Major"],["Cancer",x=>x.p.malignancy==="Yes"],["Prophylaxis",x=>x.p.indication==="Prophylaxis"],["Treatment",x=>x.p.indication==="Treatment"],["CrCl < 30 mL/min",x=>x.c.crcl!=null&&x.c.crcl<30],["BMI ≥ 40",x=>x.c.bmi!=null&&x.c.bmi>=40],["High Caprini (≥5)",x=>n(x.p.caprini)>=5]];
+  const base=[["Patients enrolled",x=>true],["Female",x=>x.p.sex==="Female"],["Major surgery",x=>x.p.surgType==="Major"],["Spinal/epidural anesthesia",x=>x.p.anesthesia==="Spinal/epidural"],["Prophylaxis",x=>x.p.indication==="Prophylaxis"],["Treatment",x=>x.p.indication==="Treatment"],["Caprini ≥ 5",x=>n(x.p.caprini)>=5],["CrCl < 30 mL/min",x=>x.c.crcl!=null&&x.c.crcl<30],["BMI ≥ 40",x=>x.c.bmi!=null&&x.c.bmi>=40]];
   const t1=base.map(([l,f])=>[td(l),...wards.map(w=>td(cnt(by(w),f),"num"))]);
-  t1.splice(1,0,[td("Mean age (years)"),...wards.map(w=>td(mean(by(w),"age"),"num"))]);
+  t1.splice(1,0,[td("Mean age (years)"),...wards.map(w=>td(mean(by(w),"age"),"num"))],[td("Mean Caprini score"),...wards.map(w=>td(mean(by(w),"caprini"),"num"))]);
   box.append(card("Table 1 · Patient characteristics",["Measure","All","Gen. Surgery","Gynecology"],t1));
-  const crit=[["Indication","jInd"],["Dose & frequency","jDose"],["Timing","jTime"],["Duration","jDur"],["Monitoring","jMon"]];
-  const rows=crit.map(([l,k])=>{const y=cnt(C,x=>x.p[k]==="Yes"),no=cnt(C,x=>x.p[k]==="No");return[td(l),td(y,"num"),td(no,"num"),pctCell(y,y+no)]});
+  const rows=[["Indication","indR"],["Dose & frequency","doseR"],["Timing vs surgery","timR"]].map(([l,k])=>{const y=cnt(C,x=>x.c[k]==="Appropriate"),no=cnt(C,x=>x.c[k]==="Inappropriate");return[td(l),td(y,"num"),td(no,"num"),pctCell(y,y+no)]});
   wards.forEach(w=>{const a=cnt(by(w),x=>x.c.overall==="Appropriate"),b=cnt(by(w),x=>x.c.overall==="Inappropriate");rows.push([el("td",null,el("strong",{text:"Overall · "+(w||"all wards")})),td(a,"num"),td(b,"num"),pctCell(a,a+b)])});
-  const ren=C.filter(x=>x.c.crcl!=null&&x.c.crcl<30),renOk=cnt(ren,x=>x.p.jDose==="Yes");
-  rows.push([td("Renal patients (CrCl<30) correctly dosed"),td(renOk,"num"),td(ren.length-renOk,"num"),pctCell(renOk,ren.length)]);
-  box.append(card("Table 2 · Appropriateness",["Criterion","Appropriate","Inappropriate","%"],rows));
-  const errs=ERR.slice(1).map(e=>[e,cnt(C,x=>x.p.err1===e)]).filter(r=>r[1]>0).sort((a,b)=>b[1]-a[1]);
-  const totE=errs.reduce((a,r)=>a+r[1],0);
-  box.append(card("Table 3 · Types of error",["Error","n","%"],errs.length?errs.map(([e,c])=>[td(e),td(c,"num"),pctCell(c,totE)]):[[td("No errors recorded yet"),td(""),td("")]]));
+  const ren=C.filter(x=>x.c.crcl!=null&&x.c.crcl<30&&x.c.doseR),renOk=cnt(ren,x=>x.c.doseR==="Appropriate");
+  rows.push([td("Renal patients (CrCl<30) dosed correctly"),td(renOk,"num"),td(ren.length-renOk,"num"),pctCell(renOk,ren.length)]);
+  box.append(card("Table 2 · Appropriateness (calculated)",["Criterion","Appropriate","Inappropriate","%"],rows));
+  const errs=REASONS.map(e=>[e,cnt(C,x=>(x.c.reason||"").split("; ").includes(e))]).filter(r=>r[1]>0).sort((a,b)=>b[1]-a[1]);
+  const nInap=cnt(C,x=>x.c.overall==="Inappropriate");
+  box.append(card("Table 3 · Reasons for inappropriate use",["Reason","n","% of inappropriate"],errs.length?errs.map(([e,c])=>[td(e),td(c,"num"),pctCell(c,nInap)]):[[td("None yet"),td(""),td("")]]));
   const DC=doses.map(d=>({d,c:calcD(d)}));
   const ar=[["On time","On time"],["Late >1 h","Late >1 h"],["Missed","Missed"]].map(([l,v])=>{const k=cnt(DC,x=>x.d.status===v);return[td("Dose "+l.toLowerCase()),td(k,"num"),td(""),pctCell(k,DC.length)]});
   TECH.forEach(([k,l])=>{const y=cnt(DC,x=>x.d[k]==="Yes"),no=cnt(DC,x=>x.d[k]==="No");ar.push([td(l),td(y,"num"),td(no,"num"),pctCell(y,y+no)])});
   const g=cnt(DC,x=>x.c.tech==="Good"),pr=cnt(DC,x=>x.c.tech==="Poor");ar.push([el("td",null,el("strong",{text:"Good technique (all steps)"})),td(g,"num"),td(pr,"num"),pctCell(g,g+pr)]);
   box.append(card("Table 4 · Administration",["Measure","Yes / n","No","%"],ar));
-  const oc=[["Minor bleeding",x=>x.p.bleed==="Minor"],["Major bleeding",x=>x.p.bleed==="Major"],["Thrombocytopenia",x=>x.p.thrombo==="Yes"],["On aspirin / clopidogrel / NSAID",x=>x.p.antiplt==="Yes"]].map(([l,f])=>{const k=cnt(C,f);return[td(l),td(k,"num"),pctCell(k,C.length)]});
+  const oc=[["Minor bleeding",x=>x.p.bleed==="Minor"],["Major bleeding",x=>x.p.bleed==="Major"],["Thrombocytopenia",x=>x.p.thrombo==="Yes"]].map(([l,f])=>{const k=cnt(C,f);return[td(l),td(k,"num"),pctCell(k,C.length)]});
   box.append(card("Table 5 · Safety",["Outcome","n","%"],oc));
 }
 
@@ -602,9 +596,9 @@ const asDate=s=>{if(!s)return"";const d=new Date(s.length===10?s+"T00:00":s);ret
 $("exportBtn").onclick=async()=>{
   if(typeof XLSX==="undefined"){toast("The Excel library did not load. Reload the page and try again.");return}
     // Patient sheet: schema order + auto-check columns before judgement
-  const cols=[];for(const[sec,fs]of P){if(sec==="Pharmacist assessment"){cols.push({k:"expDose",l:"Expected dose (mg)",calc:1},{k:"expFreq",l:"Expected frequency",calc:1},{k:"auto",l:"Auto dose check",calc:1})}fs.forEach(f=>cols.push(f))}
+  const cols=[];for(const[sec,fs]of P){if(sec==="Outcome during stay"){cols.push({k:"indR",l:"Indication result",calc:1},{k:"doseR",l:"Dose result",calc:1},{k:"timR",l:"Timing result",calc:1},{k:"overall",l:"Overall result",calc:1},{k:"reason",l:"Reason",calc:1})}fs.forEach(f=>cols.push(f))}
   cols.push({k:"_by",l:"Data collector"},{k:"updatedAt",l:"Last updated"});
-  const dateCols=new Set(["admDate"]),dtCols=new Set(["surgDT","firstDT"]);
+  const dateCols=new Set([]),dtCols=new Set(["surgDT","firstDT"]);
   const sorted=[...patients].sort((a,b)=>a.code.localeCompare(b.code));
   const pa=[cols.map(c=>c.l)];
   for(const p of sorted){const c=calcP(p);pa.push(cols.map(f=>{
