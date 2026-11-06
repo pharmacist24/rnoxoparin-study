@@ -277,84 +277,58 @@ body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signe
 <script>
 (function(){
 const YN=["Yes","No"], YNA=["Yes","No","N/A"];
-const ERR=["None","Unindicated use","Indicated but not prescribed","Wrong dose","Wrong frequency","No renal adjustment","No weight adjustment","Wrong timing vs surgery","Wrong timing vs neuraxial","Duration too short","Duration too long","No extended prophylaxis when indicated","Monitoring not done","Duplicate anticoagulant","Interacting drug not managed","Given despite contraindication","Other"];
-// Patient schema — mirrors the Excel template columns
+const ERR=["None","Unindicated use","Indicated but not given","Dose too high","Dose too low","Wrong frequency","No renal adjustment","Wrong timing vs surgery","Wrong timing vs spinal/epidural","Duration too short","Duration too long","Monitoring not done","Given despite contraindication","Other"];
+// Lean schema: only variables used in published enoxaparin DUE studies and needed for the results tables
 const P=[
- ["Identification",[
+ ["Patient",[
   {k:"code",l:"Patient code",t:"text",req:1,h:"GS-001 / GY-001. No names."},
   {k:"ward",l:"Ward",t:"sel",o:["General Surgery","Gynecology"],req:1},
   {k:"admDate",l:"Admission date",t:"date"},
-  {k:"disDate",l:"Discharge date",t:"date"},
-  {k:"los",l:"Length of stay (days)",calc:1}]],
- ["Patient",[
   {k:"age",l:"Age (years)",t:"num"},
   {k:"sex",l:"Sex",t:"sel",o:["Male","Female"]},
-  {k:"weight",l:"Weight (kg)",t:"num",h:"Actual body weight"},
-  {k:"height",l:"Height (cm)",t:"num"},
+  {k:"weight",l:"Weight (kg)",t:"num"},
+  {k:"height",l:"Height (cm)",t:"num",h:"Needed for BMI (obesity dosing)"},
   {k:"bmi",l:"BMI (kg/m²)",calc:1},
   {k:"scr",l:"Serum creatinine (mg/dL)",t:"num",h:"µmol/L ÷ 88.4"},
-  {k:"crcl",l:"CrCl Cockcroft-Gault (mL/min)",calc:1},
-  {k:"plt",l:"Baseline platelets (×10³/µL)",t:"num"},
-  {k:"hb",l:"Baseline Hb (g/dL)",t:"num"},
-  {k:"inr",l:"Baseline INR",t:"num"}]],
- ["Surgery",[
+  {k:"crcl",l:"CrCl (mL/min)",calc:1}]],
+ ["Surgery & risk",[
   {k:"procedure",l:"Diagnosis / procedure",t:"text"},
-  {k:"surgCat",l:"Surgery category",t:"sel",o:["Major","Minor","Non-operative"]},
-  {k:"malignancy",l:"Malignancy",t:"sel",o:YN},
+  {k:"surgType",l:"Surgery",t:"sel",o:["Major","Minor","No surgery"]},
+  {k:"malignancy",l:"Cancer",t:"sel",o:YN},
+  {k:"anesthesia",l:"Anesthesia",t:"sel",o:["General","Spinal/epidural","None/local"]},
   {k:"surgDT",l:"Surgery date & time",t:"dt"},
-  {k:"anesthesia",l:"Anesthesia type",t:"sel",o:["General","Spinal","Epidural","Combined spinal-epidural","Local/None"]},
-  {k:"cathDT",l:"Neuraxial catheter removal",t:"dt",h:"Only if epidural/CSE catheter"}]],
- ["Indication & risk",[
-  {k:"vteDoc",l:"VTE risk assessment documented",t:"sel",o:YN},
-  {k:"caprini",l:"Caprini score (pharmacist)",t:"num"},
-  {k:"capLevel",l:"Caprini risk level",calc:1},
-  {k:"bleedRisk",l:"Bleeding risk factor present",t:"sel",o:YN},
+  {k:"caprini",l:"Caprini score",t:"num",h:"Calculated by you from the file"},
+  {k:"capLevel",l:"Caprini risk",calc:1},
+  {k:"bleedRisk",l:"Contraindication / high bleeding risk",t:"sel",o:YN,h:"Active bleeding, platelets <50, recent brain bleed"}]],
+ ["Enoxaparin order",[
   {k:"indication",l:"Indication",t:"sel",o:["Prophylaxis","Treatment"]},
-  {k:"txDetails",l:"Treatment indication details",t:"text",h:"e.g. DVT, PE. Blank for prophylaxis."}]],
- ["Prescription",[
-  {k:"dose",l:"Prescribed dose (mg)",t:"num"},
-  {k:"freq",l:"Prescribed frequency",t:"sel",o:["OD","BID"]},
+  {k:"dose",l:"Dose (mg)",t:"num"},
+  {k:"freq",l:"Frequency",t:"sel",o:["OD","BID"]},
   {k:"firstDT",l:"First dose date & time",t:"dt"},
-  {k:"lastDT",l:"Last dose date & time",t:"dt"},
-  {k:"timing",l:"Timing of first dose",t:"sel",o:["Pre-op","Post-op","No surgery"]},
   {k:"hrsSurg",l:"Hours: first dose vs surgery",calc:1},
-  {k:"hrsCath",l:"Hours: catheter removal to next dose",t:"num",h:"Requirement ≥ 4 h"},
-  {k:"durDays",l:"Inpatient duration (days)",calc:1},
-  {k:"extProph",l:"Extended prophylaxis at discharge",t:"sel",o:YNA},
-  {k:"antiplt",l:"Concurrent antiplatelet / NSAID",t:"sel",o:YN},
-  {k:"dupAc",l:"Duplicate anticoagulant (UFH/other)",t:"sel",o:YN},
-  {k:"pltMon",l:"Platelets monitored during therapy",t:"sel",o:YNA},
-  {k:"antiXa",l:"Anti-Xa measured",t:"sel",o:YNA}]],
- ["Pharmacist judgement",[
+  {k:"duration",l:"Days on enoxaparin",t:"num",h:"Count at discharge or stop"},
+  {k:"antiplt",l:"Aspirin / clopidogrel / NSAID",t:"sel",o:YN},
+  {k:"pltMon",l:"Platelets checked during therapy",t:"sel",o:YN}]],
+ ["Pharmacist assessment",[
   {k:"jInd",l:"Indication appropriate",t:"sel",o:YNA},
   {k:"jDose",l:"Dose & frequency appropriate",t:"sel",o:YNA},
-  {k:"jTime",l:"Timing appropriate",t:"sel",o:YNA},
+  {k:"jTime",l:"Timing appropriate",t:"sel",o:YNA,h:"vs surgery and spinal/epidural"},
   {k:"jDur",l:"Duration appropriate",t:"sel",o:YNA},
   {k:"jMon",l:"Monitoring appropriate",t:"sel",o:YNA},
-  {k:"overall",l:"Overall dosing assessment",calc:1},
-  {k:"err1",l:"Error type 1",t:"sel",o:ERR},
-  {k:"err2",l:"Error type 2",t:"sel",o:ERR}]],
- ["Outcomes during stay",[
-  {k:"bleed",l:"Bleeding event",t:"sel",o:YN},
-  {k:"vte",l:"Symptomatic VTE",t:"sel",o:YN},
-  {k:"pltFall",l:"Platelets fell >50% or <100",t:"sel",o:YN},
-  {k:"interv",l:"Pharmacist intervention",t:"sel",o:["None","Accepted","Not accepted"],h:"Record the finding first"},
+  {k:"overall",l:"Overall",calc:1},
+  {k:"err1",l:"Main error",t:"sel",o:ERR}]],
+ ["Outcome during stay",[
+  {k:"bleed",l:"Bleeding",t:"sel",o:["None","Minor","Major"]},
+  {k:"thrombo",l:"Thrombocytopenia",t:"sel",o:YN,h:"Platelets <100 or fall >50%"},
   {k:"notes",l:"Notes",t:"area",wide:1}]]
 ];
-const TECH=[["t1","Correct dose / syringe"],["t2","SC route"],["t3","Abdominal site ≥5 cm from umbilicus"],["t4","Air bubble NOT expelled"],["t5","Skin fold held throughout"],["t6","Needle inserted at 90°"],["t7","Site NOT rubbed after"],["t8","Site rotated from last dose"],["t9","Hand hygiene / gloves"]];
+const TECH=[["t1","Hand hygiene / gloves"],["t2","Abdomen, ≥5 cm from umbilicus"],["t3","Site rotated from last dose"],["t4","Air bubble NOT expelled"],["t5","Skin fold held throughout"],["t6","Needle at 90°, full length"],["t7","Site NOT rubbed after"]];
 const D=[
  ["Dose",[
   {k:"code",l:"Patient code",t:"psel",req:1},
   {k:"date",l:"Date",t:"date",req:1},
-  {k:"source",l:"Source",t:"sel",o:["Direct observation","Nursing chart"]},
-  {k:"shift",l:"Shift",t:"sel",o:["Morning","Evening","Night"]},
-  {k:"nurse",l:"Nurse code",t:"text",h:"Anonymous, e.g. N01"},
-  {k:"sched",l:"Scheduled time",t:"time"},
-  {k:"actual",l:"Actual time",t:"time"},
-  {k:"delay",l:"Delay (min)",calc:1},
-  {k:"status",l:"Dose status",t:"sel",o:["Given","Missed","Held (documented reason)"]},
-  {k:"reason",l:"Reason not given",t:"text"}]],
- ["Technique (direct observation)",TECH.map(([k,l])=>({k,l,t:"sel",o:YNA}))],
+  {k:"status",l:"Dose given",t:"sel",o:["On time","Late >1 h","Missed"]}]],
+ ["Injection technique (observed)",TECH.map(([k,l])=>({k,l,t:"sel",o:YNA}))],
  ["Notes",[{k:"notes",l:"Notes",t:"area",wide:1}]]
 ];
 const PF=P.flatMap(s=>s[1]), DF=D.flatMap(s=>s[1]);
@@ -364,12 +338,10 @@ const n=v=>{if(v===""||v==null)return null;const x=parseFloat(v);return isFinite
 const r1=x=>Math.round(x*10)/10;
 function calcP(p){
   const o={};const w=n(p.weight),h=n(p.height),age=n(p.age),scr=n(p.scr),cap=n(p.caprini);
-  if(p.admDate&&p.disDate)o.los=Math.round((Date.parse(p.disDate)-Date.parse(p.admDate))/864e5);
   if(w&&h)o.bmi=r1(w/Math.pow(h/100,2));
   if(age!=null&&w&&scr&&p.sex)o.crcl=Math.round((140-age)*w/(72*scr)*(p.sex==="Female"?0.85:1));
-  if(cap!=null)o.capLevel=cap<=1?"Very low/Low":cap===2?"Low":cap<=4?"Moderate":"High";
+  if(cap!=null)o.capLevel=cap<=2?"Low":cap<=4?"Moderate":"High";
   if(p.firstDT&&p.surgDT)o.hrsSurg=r1((Date.parse(p.firstDT)-Date.parse(p.surgDT))/36e5);
-  if(p.firstDT&&p.lastDT)o.durDays=Math.round((Date.parse(p.lastDT.slice(0,10))-Date.parse(p.firstDT.slice(0,10)))/864e5)+1;
   const renal=o.crcl!=null&&o.crcl<30;
   if(p.indication&&w){o.expDose=p.indication==="Prophylaxis"?(renal?30:40):Math.round(w)}
   if(p.indication){o.expFreq=p.indication==="Prophylaxis"?(renal?"OD":(o.bmi!=null&&o.bmi>=40?"BID":"OD")):(renal?"OD":"BID")}
@@ -379,13 +351,10 @@ function calcP(p){
   o.overall=js.some(v=>!v)?"Incomplete":js.includes("No")?"Inappropriate":"Appropriate";
   return o;
 }
-function tmin(t){if(!t)return null;const[a,b]=t.split(":").map(Number);return a*60+b}
 function calcD(d){
-  const o={};const s=tmin(d.sched),a=tmin(d.actual);
-  if(s!=null&&a!=null){let x=a-s;if(x<-720)x+=1440;if(x>720)x-=1440;o.delay=x;o.onTime=Math.abs(x)<=60?"Yes":"No"}
-  const v=TECH.map(([k])=>d[k]);const yes=v.filter(x=>x==="Yes").length,no=v.filter(x=>x==="No").length;
+  const o={};const v=TECH.map(([k])=>d[k]);const yes=v.filter(x=>x==="Yes").length,no=v.filter(x=>x==="No").length;
   o.correct=yes;o.assessed=yes+no;
-  if(o.assessed){o.score=yes/o.assessed;o.all=yes===o.assessed?"Yes":"No"}
+  if(o.assessed){o.score=yes/o.assessed;o.tech=no===0?"Good":"Poor"}
   return o;
 }
 
@@ -450,7 +419,7 @@ $("tab-patients").onclick=()=>show("patients");
 $("tab-doses").onclick=()=>show("doses");
 $("tab-summary").onclick=()=>{renderSummary();show("summary")};
 
-function chip(text){const cls=text==="Appropriate"||text==="Match"||text==="Yes"||text==="All correct"||text==="Given"?"ok":text==="Inappropriate"||text==="No"||text==="Errors"||text==="Missed"?"bad":text==="Review"?"warn":"inc";return el("span",{class:"chip "+cls,text})}
+function chip(text){const cls=text==="Appropriate"||text==="Match"||text==="Yes"||text==="Good"||text==="On time"?"ok":text==="Inappropriate"||text==="No"||text==="Poor"||text==="Missed"?"bad":text==="Review"?"warn":"inc";return el("span",{class:"chip "+cls,text})}
 
 function itemCard(main,right,line2,meta,onOpen){
   const b=el("button",{class:"item",type:"button"},el("div",{class:"r1"},main,right));
@@ -479,12 +448,12 @@ $("search").oninput=renderPatients;$("wardFilter").onchange=renderPatients;
 function renderDoses(){
   $("nD").textContent=doses.length;
   const box=$("dRows");box.replaceChildren();
-  const rows=[...doses].sort((a,b)=>((b.date||"")+(b.sched||"")).localeCompare((a.date||"")+(a.sched||"")));
+  const rows=[...doses].sort((a,b)=>((b.date||"")+(b.updatedAt||"")).localeCompare((a.date||"")+(a.updatedAt||"")));
   for(const d of rows){
     const c=calcD(d);
-    const meta=el("div",{class:"meta"},m("Delay",c.delay!=null?c.delay+" min":"—"),m("Technique",c.assessed?`${c.correct}/${c.assessed}`:"—"));
-    box.append(itemCard(el("span",{class:"code",text:d.code}),c.all?chip(c.all==="Yes"?"All correct":"Errors"):chip(d.status||"—"),
-      [d.date,d.shift,d.source,d.status].filter(Boolean).join(" · "),meta,()=>openDose(d)));
+    const meta=el("div",{class:"meta"},m("Technique",c.assessed?`${c.correct}/${c.assessed}`:"—"));
+    box.append(itemCard(el("span",{class:"code",text:d.code}),c.tech?chip(c.tech):chip(d.status||"—"),
+      [d.date,d.status].filter(Boolean).join(" · "),meta,()=>openDose(d)));
   }
   $("dEmpty").hidden=rows.length>0;
 }
@@ -556,12 +525,11 @@ function refreshPatientSelect(){
   s.value=cur;
 }
 function updateDrx(){
-  const d=readForm(DF,"d_"),c=calcD(d);$("d_delay").value=c.delay!=null?c.delay:"";
+  const d=readForm(DF,"d_"),c=calcD(d);
   const rx=$("drx");rx.replaceChildren();
-  rx.append(el("div",null,el("span",{text:"Delay"}),el("b",{text:c.delay!=null?c.delay+" min":"—"})));
-  const ot=el("div",null,el("span",{text:"On time (±60 min)"}));ot.append(c.onTime?chip(c.onTime):el("b",{text:"—"}));rx.append(ot);
-  rx.append(el("div",null,el("span",{text:"Technique"}),el("b",{text:c.assessed?`${c.correct}/${c.assessed} · ${Math.round(c.score*100)}%`:"—"})));
-  const al=el("div",null,el("span",{text:"All steps correct"}));al.append(c.all?chip(c.all):el("b",{text:"—"}));rx.append(al);
+  const st=el("div",null,el("span",{text:"Dose given"}));st.append(d.status?chip(d.status):el("b",{text:"—"}));rx.append(st);
+  rx.append(el("div",null,el("span",{text:"Steps correct"}),el("b",{text:c.assessed?`${c.correct}/${c.assessed}`:"—"})));
+  const tq=el("div",null,el("span",{text:"Technique"}));tq.append(c.tech?chip(c.tech):el("b",{text:"—"}));rx.append(tq);
   prog(D,"d_",d);
 }
 $("dForm").addEventListener("input",updateDrx);$("dForm").addEventListener("change",updateDrx);
@@ -606,34 +574,37 @@ function renderSummary(){
   const{C,by}=summaryData();
   const wards=["","General Surgery","Gynecology"];
   const cnt=(arr,f)=>arr.filter(f).length;
-  const base=[["Patients enrolled",x=>true],["Prophylaxis",x=>x.p.indication==="Prophylaxis"],["Treatment",x=>x.p.indication==="Treatment"],["CrCl < 30 mL/min",x=>x.c.crcl!=null&&x.c.crcl<30],["BMI ≥ 40",x=>x.c.bmi!=null&&x.c.bmi>=40],["High Caprini (≥5)",x=>n(x.p.caprini)>=5],["Malignancy",x=>x.p.malignancy==="Yes"]];
-  box.append(card("Patients",["Measure","All","Gen. Surgery","Gynecology"],base.map(([l,f])=>[td(l),...wards.map(w=>td(cnt(by(w),f),"num"))])));
-  const crit=[["VTE risk assessment documented","vteDoc"],["Indication appropriate","jInd"],["Dose & frequency appropriate","jDose"],["Timing appropriate","jTime"],["Duration appropriate","jDur"],["Monitoring appropriate","jMon"]];
+  const mean=(arr,k)=>{const v=arr.map(x=>n(x.p[k])).filter(x=>x!=null);return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):"—"};
+  const base=[["Patients enrolled",x=>true],["Female",x=>x.p.sex==="Female"],["Major surgery",x=>x.p.surgType==="Major"],["Cancer",x=>x.p.malignancy==="Yes"],["Prophylaxis",x=>x.p.indication==="Prophylaxis"],["Treatment",x=>x.p.indication==="Treatment"],["CrCl < 30 mL/min",x=>x.c.crcl!=null&&x.c.crcl<30],["BMI ≥ 40",x=>x.c.bmi!=null&&x.c.bmi>=40],["High Caprini (≥5)",x=>n(x.p.caprini)>=5]];
+  const t1=base.map(([l,f])=>[td(l),...wards.map(w=>td(cnt(by(w),f),"num"))]);
+  t1.splice(1,0,[td("Mean age (years)"),...wards.map(w=>td(mean(by(w),"age"),"num"))]);
+  box.append(card("Table 1 · Patient characteristics",["Measure","All","Gen. Surgery","Gynecology"],t1));
+  const crit=[["Indication","jInd"],["Dose & frequency","jDose"],["Timing","jTime"],["Duration","jDur"],["Monitoring","jMon"]];
   const rows=crit.map(([l,k])=>{const y=cnt(C,x=>x.p[k]==="Yes"),no=cnt(C,x=>x.p[k]==="No");return[td(l),td(y,"num"),td(no,"num"),pctCell(y,y+no)]});
   wards.forEach(w=>{const a=cnt(by(w),x=>x.c.overall==="Appropriate"),b=cnt(by(w),x=>x.c.overall==="Inappropriate");rows.push([el("td",null,el("strong",{text:"Overall · "+(w||"all wards")})),td(a,"num"),td(b,"num"),pctCell(a,a+b)])});
-  box.append(card("Dosing appropriateness",["Criterion","Yes","No","% appropriate"],rows));
-  const errs=ERR.slice(1).map(e=>[e,cnt(C,x=>x.p.err1===e)+cnt(C,x=>x.p.err2===e)]).filter(r=>r[1]>0).sort((a,b)=>b[1]-a[1]);
-  box.append(card("Error types",["Error","Count"],errs.length?errs.map(([e,c])=>[td(e),td(c,"num")]):[[td("No errors recorded yet"),td("")]]));
+  const ren=C.filter(x=>x.c.crcl!=null&&x.c.crcl<30),renOk=cnt(ren,x=>x.p.jDose==="Yes");
+  rows.push([td("Renal patients (CrCl<30) correctly dosed"),td(renOk,"num"),td(ren.length-renOk,"num"),pctCell(renOk,ren.length)]);
+  box.append(card("Table 2 · Appropriateness",["Criterion","Appropriate","Inappropriate","%"],rows));
+  const errs=ERR.slice(1).map(e=>[e,cnt(C,x=>x.p.err1===e)]).filter(r=>r[1]>0).sort((a,b)=>b[1]-a[1]);
+  const totE=errs.reduce((a,r)=>a+r[1],0);
+  box.append(card("Table 3 · Types of error",["Error","n","%"],errs.length?errs.map(([e,c])=>[td(e),td(c,"num"),pctCell(c,totE)]):[[td("No errors recorded yet"),td(""),td("")]]));
   const DC=doses.map(d=>({d,c:calcD(d)}));
-  const ot=cnt(DC,x=>x.c.onTime==="Yes"),ol=cnt(DC,x=>x.c.onTime==="No");
-  const ar=[[td("Dose records"),td(DC.length,"num"),td(""),td("")],[td("Directly observed"),td(cnt(DC,x=>x.d.source==="Direct observation"),"num"),td(""),td("")],[td("Missed doses"),td(cnt(DC,x=>x.d.status==="Missed"),"num"),td(""),td("")],[td("On time (±60 min)"),td(ot,"num"),td(ol,"num"),pctCell(ot,ot+ol)]];
+  const ar=[["On time","On time"],["Late >1 h","Late >1 h"],["Missed","Missed"]].map(([l,v])=>{const k=cnt(DC,x=>x.d.status===v);return[td("Dose "+l.toLowerCase()),td(k,"num"),td(""),pctCell(k,DC.length)]});
   TECH.forEach(([k,l])=>{const y=cnt(DC,x=>x.d[k]==="Yes"),no=cnt(DC,x=>x.d[k]==="No");ar.push([td(l),td(y,"num"),td(no,"num"),pctCell(y,y+no)])});
-  const ay=cnt(DC,x=>x.c.all==="Yes"),an=cnt(DC,x=>x.c.all==="No");ar.push([el("td",null,el("strong",{text:"All steps correct"})),td(ay,"num"),td(an,"num"),pctCell(ay,ay+an)]);
-  box.append(card("Administration",["Measure","Yes / count","No","% compliant"],ar));
-  const oc=[["Bleeding event","bleed"],["Symptomatic VTE","vte"],["Platelets fell >50% or <100","pltFall"]].map(([l,k])=>[td(l),td(cnt(C,x=>x.p[k]==="Yes"),"num")]);
-  oc.push([td("Interventions accepted"),td(cnt(C,x=>x.p.interv==="Accepted"),"num")],[td("Interventions not accepted"),td(cnt(C,x=>x.p.interv==="Not accepted"),"num")]);
-  box.append(card("Outcomes during stay",["Outcome","Count"],oc));
+  const g=cnt(DC,x=>x.c.tech==="Good"),pr=cnt(DC,x=>x.c.tech==="Poor");ar.push([el("td",null,el("strong",{text:"Good technique (all steps)"})),td(g,"num"),td(pr,"num"),pctCell(g,g+pr)]);
+  box.append(card("Table 4 · Administration",["Measure","Yes / n","No","%"],ar));
+  const oc=[["Minor bleeding",x=>x.p.bleed==="Minor"],["Major bleeding",x=>x.p.bleed==="Major"],["Thrombocytopenia",x=>x.p.thrombo==="Yes"],["On aspirin / clopidogrel / NSAID",x=>x.p.antiplt==="Yes"]].map(([l,f])=>{const k=cnt(C,f);return[td(l),td(k,"num"),pctCell(k,C.length)]});
+  box.append(card("Table 5 · Safety",["Outcome","n","%"],oc));
 }
 
 // ---------- export ----------
 const asDate=s=>{if(!s)return"";const d=new Date(s.length===10?s+"T00:00":s);return isNaN(d)?s:d};
 $("exportBtn").onclick=async()=>{
   if(typeof XLSX==="undefined"){toast("The Excel library did not load. Reload the page and try again.");return}
-  const calcLabels={los:"Length of stay (days)",bmi:"BMI (kg/m²)",crcl:"CrCl Cockcroft-Gault (mL/min)",capLevel:"Caprini risk level",hrsSurg:"Hours: first dose vs surgery",durDays:"Inpatient duration (days)",overall:"Overall dosing assessment"};
-  // Patient sheet: schema order + auto-check columns before judgement
-  const cols=[];for(const[sec,fs]of P){if(sec==="Pharmacist judgement"){cols.push({k:"expDose",l:"Expected dose (mg)",calc:1},{k:"expFreq",l:"Expected frequency",calc:1},{k:"auto",l:"Auto dose check",calc:1})}fs.forEach(f=>cols.push(f))}
+    // Patient sheet: schema order + auto-check columns before judgement
+  const cols=[];for(const[sec,fs]of P){if(sec==="Pharmacist assessment"){cols.push({k:"expDose",l:"Expected dose (mg)",calc:1},{k:"expFreq",l:"Expected frequency",calc:1},{k:"auto",l:"Auto dose check",calc:1})}fs.forEach(f=>cols.push(f))}
   cols.push({k:"_by",l:"Data collector"},{k:"updatedAt",l:"Last updated"});
-  const dateCols=new Set(["admDate","disDate"]),dtCols=new Set(["surgDT","cathDT","firstDT","lastDT"]);
+  const dateCols=new Set(["admDate"]),dtCols=new Set(["surgDT","firstDT"]);
   const sorted=[...patients].sort((a,b)=>a.code.localeCompare(b.code));
   const pa=[cols.map(c=>c.l)];
   for(const p of sorted){const c=calcP(p);pa.push(cols.map(f=>{
@@ -647,7 +618,7 @@ $("exportBtn").onclick=async()=>{
   cols.forEach((f,ci)=>{if(dateCols.has(f.k)||dtCols.has(f.k)){for(let r=1;r<pa.length;r++){const a=XLSX.utils.encode_cell({r,c:ci});if(ws1[a]&&ws1[a].t==="n")ws1[a].z=dateCols.has(f.k)?"dd/mm/yyyy":"dd/mm/yyyy hh:mm"}}});
   ws1["!cols"]=cols.map(c=>({wch:Math.min(30,Math.max(10,c.l.length*0.75))}));ws1["!freeze"]={xSplit:2,ySplit:1};
   // Administration sheet
-  const dcols=[...DF.filter(f=>f.k!=="notes"),{k:"onTime",l:"On time (±60 min)",calc:1},{k:"correct",l:"Items correct",calc:1},{k:"assessed",l:"Items assessed",calc:1},{k:"score",l:"Technique score (%)",calc:1},{k:"all",l:"All steps correct",calc:1},{k:"notes",l:"Notes"},{k:"_by",l:"Data collector"}];
+  const dcols=[...DF.filter(f=>f.k!=="notes"),{k:"correct",l:"Steps correct",calc:1},{k:"assessed",l:"Steps assessed",calc:1},{k:"score",l:"Technique score (%)",calc:1},{k:"tech",l:"Technique (Good/Poor)",calc:1},{k:"notes",l:"Notes"},{k:"_by",l:"Data collector"}];
   const wardOf=Object.fromEntries(patients.map(p=>[p.code,p.ward]));
   dcols.splice(1,0,{k:"_ward",l:"Ward"});
   const da=[dcols.map(c=>c.l)];
