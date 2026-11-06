@@ -3,153 +3,187 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1c5d66">
+<meta name="theme-color" content="#173f8a">
 <meta name="robots" content="noindex">
 <title>Enoxaparin Study Collector</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%231c5d66%27/%3E%3Cpath d=%27M9 23l14-14M19 7l6 6M14 18l-3-3%27 stroke=%27white%27 stroke-width=%272.5%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23173f8a%27/%3E%3Cpath d=%27M9 23l14-14M19 7l6 6M14 18l-3-3%27 stroke=%27white%27 stroke-width=%272.5%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
 [hidden]{display:none!important}
 html,body{margin:0}
 img{max-width:100%}
-/* Layout: mobile-first ward tool. Phone = compact header, card lists, bottom tab bar, fixed save bar.
-   ≥900px = tabs move under the header, lists go multi-column, forms widen to a grid. */
+/* Layout: mobile-first ward tool. Gradient header band, colour-coded form sections (one hue per section),
+   card lists, bottom tab bar on phones; tabs move into the header band at ≥900px. */
 :root{
-  --bg:#f4f7f8; --surface:#ffffff; --sunk:#e9eff1; --line:#d3dde1;
-  --ink:#13222b; --muted:#5b6d77; --accent:#1c5d66; --accent-ink:#ffffff; --accent-soft:#d9ebec;
-  --ok:#2e7d4f; --ok-soft:#dcefe3; --bad:#b4382c; --bad-soft:#f6dedb; --warn:#8a5f00; --warn-soft:#f6ebcc;
-  --calc:#eaf1f6;
-  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bg:#eef2f8; --surface:#ffffff; --sunk:#e7edf6; --line:#d6dfeb;
+  --ink:#0f1f36; --muted:#5b6b82;
+  --brand:#173f8a; --brand-2:#0e8a9a; --on-brand:#ffffff;
+  --accent:#1f5fd1; --accent-ink:#ffffff; --accent-soft:#e1eafc;
+  --ok:#1b8a4f; --ok-soft:#dcf3e6; --bad:#cf3b2d; --bad-soft:#fde4e0; --warn:#a86a12; --warn-soft:#fbefd5;
+  --s1:#2f6fde; --s2:#7a5af0; --s3:#d98b0b; --s4:#0f9d8f; --s5:#e0567a;
+  --shadow:0 1px 2px rgba(15,31,54,.06),0 6px 18px rgba(15,31,54,.07);
+  --sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --nav-h:60px;
+  --nav-h:64px;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0f171b; --surface:#16222a; --sunk:#1d2b34; --line:#2c3d47;
-  --ink:#e4ecef; --muted:#93a6b0; --accent:#5fb3bb; --accent-ink:#0b1a1d; --accent-soft:#1d3a3f;
-  --ok:#6cc792; --ok-soft:#1c3427; --bad:#ef8a7e; --bad-soft:#3d2220; --warn:#e2b54d; --warn-soft:#3a3018;
-  --calc:#1a2933; color-scheme:dark}}
+  --bg:#0b1220; --surface:#121b2d; --sunk:#18233a; --line:#26334d;
+  --ink:#e6edf7; --muted:#9aa8bf;
+  --brand:#1b3c7c; --brand-2:#0b6774; --on-brand:#ffffff;
+  --accent:#6b9cff; --accent-ink:#0b1220; --accent-soft:#1b2a4a;
+  --ok:#5fd394; --ok-soft:#143523; --bad:#ff8a7a; --bad-soft:#3d1d1a; --warn:#f2c063; --warn-soft:#3a2e15;
+  --s1:#6b9cff; --s2:#a993ff; --s3:#f2c063; --s4:#4fd1c1; --s5:#ff8fab;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+  color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0f171b; --surface:#16222a; --sunk:#1d2b34; --line:#2c3d47;
-  --ink:#e4ecef; --muted:#93a6b0; --accent:#5fb3bb; --accent-ink:#0b1a1d; --accent-soft:#1d3a3f;
-  --ok:#6cc792; --ok-soft:#1c3427; --bad:#ef8a7e; --bad-soft:#3d2220; --warn:#e2b54d; --warn-soft:#3a3018;
-  --calc:#1a2933; color-scheme:dark}
+  --bg:#0b1220; --surface:#121b2d; --sunk:#18233a; --line:#26334d;
+  --ink:#e6edf7; --muted:#9aa8bf;
+  --brand:#1b3c7c; --brand-2:#0b6774; --on-brand:#ffffff;
+  --accent:#6b9cff; --accent-ink:#0b1220; --accent-soft:#1b2a4a;
+  --ok:#5fd394; --ok-soft:#143523; --bad:#ff8a7a; --bad-soft:#3d1d1a; --warn:#f2c063; --warn-soft:#3a2e15;
+  --s1:#6b9cff; --s2:#a993ff; --s3:#f2c063; --s4:#4fd1c1; --s5:#ff8fab;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+  color-scheme:dark}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.45;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px))}
-body.editing{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+body.editing{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--brand)}
 .wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 
-/* header */
-header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
-.top{display:flex;align-items:center;gap:12px;padding-block:10px}
+/* header band */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:linear-gradient(115deg,var(--brand),var(--brand-2));color:var(--on-brand);box-shadow:0 2px 12px rgba(15,31,54,.18)}
+.top{display:flex;align-items:center;gap:10px;padding-block:12px}
+.logo{flex:0 0 auto;width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);display:grid;place-items:center}
+.logo svg{width:22px;height:22px;stroke:var(--on-brand);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .brand{flex:1;min-width:0}
-.brand h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.brand p{margin:1px 0 0;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand h1{margin:0;font-size:17px;font-weight:800;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand p{margin:1px 0 0;opacity:.82;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 
 /* bottom tab bar (phone) */
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border-top:1px solid var(--line);padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));box-shadow:0 -4px 16px rgba(15,31,54,.06)}
 body.editing .tabs{display:none}
-.tab{appearance:none;border:0;background:none;color:var(--muted);font:600 12px var(--sans);height:var(--nav-h);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;position:relative}
-.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.tab[aria-selected="true"]{color:var(--accent)}
-.tab[aria-selected="true"]::before{content:"";position:absolute;top:0;left:30%;right:30%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
-.tab .n{position:absolute;top:7px;left:calc(50% + 8px);font:500 10px var(--mono);background:var(--accent-soft);color:var(--ink);border-radius:999px;padding:1px 6px}
+.tab{appearance:none;border:0;background:none;color:var(--muted);font:700 12px var(--sans);height:calc(var(--nav-h) - 12px);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;position:relative}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-selected="true"]{color:var(--accent);background:var(--accent-soft)}
+.tab .n{position:absolute;top:4px;left:calc(50% + 8px);font:600 10px var(--mono);background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:1px 6px}
 
 /* buttons & inputs: 44px targets, 16px text so phones don't zoom */
-button.btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 15px var(--sans);min-height:44px;padding:0 16px;border-radius:8px;cursor:pointer;touch-action:manipulation}
-button.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:700 15px var(--sans);min-height:44px;padding:0 16px;border-radius:12px;cursor:pointer;touch-action:manipulation}
+button.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);box-shadow:0 4px 12px color-mix(in srgb,var(--accent) 30%,transparent)}
 button.btn.danger{color:var(--bad);border-color:var(--bad);background:transparent}
+button.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
 button.btn.icon{padding:0 12px;display:inline-flex;align-items:center;gap:6px}
 button.btn.icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 button.btn:disabled{opacity:.5;cursor:not-allowed}
-button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,.item:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-input,select,textarea{font:16px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0;min-height:44px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,.item:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:2px}
+input,select,textarea{font:16px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0;min-height:44px}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 textarea{min-height:88px;resize:vertical}
 .export-label{display:none}
 
-main{padding-block:14px 28px}
-.notice{padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:12px}
+main{padding-block:16px 28px}
+.notice{padding:11px 14px;border-radius:12px;font-size:13px;margin-bottom:14px}
 .notice.info{background:var(--accent-soft)}
 .notice.warn{background:var(--warn-soft)}
 .notice.bad{background:var(--bad-soft)}
 
 /* list toolbar */
-.bar{display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:12px}
+.bar{display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:14px}
 .bar .search{grid-column:1/-1}
 .bar .note{color:var(--muted);font-size:13px;align-self:center}
 
-/* cards */
-.list{display:grid;gap:10px}
-.item{display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;appearance:none;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer;min-width:0}
-.item:active{background:var(--sunk)}
-.item .r1{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.item .code{font:500 16px var(--mono)}
-.item .r2{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.item .meta{display:flex;flex-wrap:wrap;gap:6px 12px;color:var(--muted);font-size:13px;align-items:center}
+/* patient & dose cards */
+.list{display:grid;gap:12px}
+.item{display:flex;flex-direction:column;gap:8px;width:100%;text-align:left;appearance:none;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;cursor:pointer;min-width:0;box-shadow:var(--shadow)}
+.item:active{transform:scale(.99)}
+.item .r1{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.item .who{display:flex;flex-direction:column;gap:2px;min-width:0}
+.item .pname{font-size:16px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .code{font:500 12px var(--mono);color:var(--muted)}
+.item .r2{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .meta{display:flex;flex-wrap:wrap;gap:6px 14px;color:var(--muted);font-size:13px;align-items:center;padding-top:8px;border-top:1px dashed var(--line)}
 .item .meta b{font:500 13px var(--mono);color:var(--ink);font-variant-numeric:tabular-nums}
-.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
 .chip.ok{background:var(--ok-soft);color:var(--ok)}
 .chip.bad{background:var(--bad-soft);color:var(--bad)}
 .chip.inc{background:var(--sunk);color:var(--muted)}
 .chip.warn{background:var(--warn-soft);color:var(--warn)}
-.empty{padding:32px 18px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px}
+.chip.gs{background:color-mix(in srgb,var(--s1) 16%,var(--surface));color:var(--s1)}
+.chip.gy{background:color-mix(in srgb,var(--s5) 16%,var(--surface));color:var(--s5)}
+.empty{padding:36px 20px;text-align:center;color:var(--muted);border:2px dashed var(--line);border-radius:16px;background:var(--surface)}
 .empty strong{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
 
 /* editor */
-.editor-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-.editor-head h2{margin:0;font-size:18px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rx{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px}
-.rx div{background:var(--calc);padding:8px 12px;min-width:0}
-.rx span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
-.rx b{font-family:var(--mono);font-weight:500;font-size:15px;font-variant-numeric:tabular-nums}
-details.sec{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:0 0 10px}
-details.sec>summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:50px;padding:0 14px;cursor:pointer;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+.editor-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.editor-head h2{margin:0;font-size:20px;font-weight:800;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rx{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+.rx div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 12px;min-width:0}
+.rx div.why{grid-column:1/-1;background:var(--bad-soft);border-color:transparent}
+.rx span{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px}
+.rx b{font-family:var(--mono);font-weight:500;font-size:14px;font-variant-numeric:tabular-nums}
+details.sec{--sc:var(--s1);border:1px solid var(--line);border-radius:16px;background:var(--surface);margin:0 0 12px;box-shadow:var(--shadow);overflow:hidden}
+details.sec>summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:54px;padding:0 16px;cursor:pointer;font-weight:800;font-size:15px;color:var(--ink);background:color-mix(in srgb,var(--sc) 9%,var(--surface))}
+details.sec>summary .dot{width:28px;height:28px;border-radius:9px;background:var(--sc);display:grid;place-items:center;flex:0 0 auto}
+details.sec>summary .dot svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 details.sec>summary::-webkit-details-marker{display:none}
-details.sec>summary .prog{margin-left:auto;font:500 12px var(--mono);color:var(--muted);text-transform:none;letter-spacing:0}
+details.sec>summary .prog{margin-left:auto;font:600 12px var(--mono);color:var(--sc);background:var(--surface);border-radius:999px;padding:2px 9px}
 details.sec>summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin:-4px 2px 0 0}
 details.sec[open]>summary::after{transform:rotate(-135deg);margin-top:4px}
-.grid{display:grid;grid-template-columns:1fr;gap:14px;padding:4px 14px 16px}
+.grid{display:grid;grid-template-columns:1fr;gap:14px;padding:14px 16px 18px}
 .f{display:flex;flex-direction:column;gap:6px;min-width:0}
-.f label,.f .lbl{font-size:13px;font-weight:600;color:var(--muted)}
+.f label,.f .lbl{font-size:13px;font-weight:700;color:var(--muted)}
 .f .hint{font-size:12px;color:var(--muted)}
-.f.calc input{background:var(--calc);font-family:var(--mono);border-style:dashed}
-.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
-.seg label{position:relative;display:flex;align-items:center;justify-content:center;min-height:44px;font:600 14px var(--sans);color:var(--ink);cursor:pointer;border-left:1px solid var(--line);padding:0 6px;text-align:center;touch-action:manipulation}
-.seg label:first-child{border-left:0}
+.f.calc input{background:var(--sunk);font-family:var(--mono);border-style:dashed;color:var(--ink)}
+.f.big input{font-size:22px;font-weight:600;color:var(--sc)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}
+.seg label{position:relative;display:flex;align-items:center;justify-content:center;min-height:44px;font:700 14px var(--sans);color:var(--ink);cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:0 6px;text-align:center;touch-action:manipulation;background:var(--surface)}
 .seg input{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;min-height:0}
-.seg label:has(input:checked){background:var(--accent);color:var(--accent-ink)}
-.seg label:has(input[value="No"]:checked){background:var(--bad);color:var(--accent-ink)}
-.seg label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:-2px}
-.actions{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line)}
+.seg label:has(input:checked){background:var(--sc);border-color:var(--sc);color:#fff}
+.seg label:has(input[value="Yes"]:checked){background:var(--bad);border-color:var(--bad)}
+.seg label:has(input:focus-visible){outline:3px solid color-mix(in srgb,var(--sc) 45%,transparent);outline-offset:1px}
+/* Caprini checklist */
+.ptsHead{grid-column:1/-1;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--sc);margin-top:4px}
+.chk{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;font-size:14px;font-weight:600}
+.chk input{width:20px;height:20px;min-height:0;flex:0 0 auto;accent-color:var(--sc);margin:0}
+.chk:has(input:checked){background:color-mix(in srgb,var(--sc) 14%,var(--surface));border-color:var(--sc)}
+.capAuto{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.capAuto .chip{background:color-mix(in srgb,var(--sc) 16%,var(--surface));color:var(--ink)}
+.actions{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(15,31,54,.08)}
 .actions .wrap{display:flex;gap:10px;align-items:center;padding-block:10px calc(10px + env(safe-area-inset-bottom,0px))}
-.actions .grow{flex:1;min-width:0}
 .actions .btn.primary{flex:1}
-.msg{font-size:13px;color:var(--muted);margin:4px 0 14px}
-.confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:8px;background:var(--bad-soft);font-size:14px;margin-bottom:12px}
+.msg{font-size:13px;color:var(--muted);margin:2px 0 14px}
+.confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--bad-soft);font-size:14px;margin-bottom:12px}
 
 /* summary */
-.sumgrid{display:grid;gap:12px}
-.card{border:1px solid var(--line);border-radius:10px;background:var(--surface);min-width:0;overflow:hidden}
-.card h3{margin:0;padding:11px 14px;font-size:14px;border-bottom:1px solid var(--line)}
+.sumgrid{display:grid;gap:14px}
+.card{border:1px solid var(--line);border-radius:16px;background:var(--surface);min-width:0;overflow:hidden;box-shadow:var(--shadow)}
+.card h3{margin:0;padding:13px 16px;font-size:15px;font-weight:800;border-bottom:1px solid var(--line)}
 .card .tb{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:13px}
-th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line)}
-th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;background:var(--sunk)}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line)}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;background:var(--sunk)}
 tbody tr:last-child td{border-bottom:0}
 td.num,.pct{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
-.meter{height:6px;border-radius:3px;background:var(--sunk);overflow:hidden;margin-top:4px;min-width:50px}
-.meter i{display:block;height:100%;background:var(--accent)}
-.toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:14px;z-index:20;width:max-content;max-width:calc(100% - 32px)}
-body.editing .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+.meter{height:7px;border-radius:4px;background:var(--sunk);overflow:hidden;margin-top:4px;min-width:50px}
+.meter i{display:block;height:100%;background:linear-gradient(90deg,var(--brand-2),var(--accent));border-radius:4px}
+.toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:12px;font-size:14px;font-weight:600;z-index:20;width:max-content;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
+body.editing .toast{bottom:calc(88px + env(safe-area-inset-bottom,0px))}
+
+/* export sheet */
+.sheet{position:fixed;inset:0;z-index:30;background:rgba(9,17,32,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet-card{width:100%;max-width:420px;background:var(--surface);border-radius:20px;padding:20px;display:grid;gap:10px;box-shadow:var(--shadow)}
+.sheet-card h3{margin:0;font-size:18px;font-weight:800}
+.sheet-card p{margin:0 0 4px;color:var(--muted);font-size:14px}
 
 /* sign-in */
 body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signed-out #signOut{display:none}
-.login{min-height:calc(100vh - 140px);display:grid;place-items:center;padding-block:24px}
-.login form{width:100%;max-width:380px;display:grid;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px 18px}
-.login h2{margin:0;font-size:20px}
+.login{min-height:calc(100vh - 140px);display:grid;place-items:center;padding-block:28px}
+.login form{width:100%;max-width:400px;display:grid;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px 20px;box-shadow:var(--shadow)}
+.login h2{margin:0;font-size:22px;font-weight:800}
 .login p{margin:0;color:var(--muted);font-size:14px}
 .login .err{color:var(--bad);font-size:14px;min-height:1.2em}
 #signOut{padding:0 12px}
@@ -163,33 +197,38 @@ body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signe
   .bar{grid-template-columns:1fr auto auto}
   .bar .search{grid-column:auto}
   .export-label{display:inline}
+  .sheet{align-items:center}
 }
 @media (min-width:900px){
   body,body.editing{padding-bottom:0}
-  .tabs{position:static;display:flex;gap:4px;border-top:0;padding:0 0 8px;background:none;max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .tabs{position:static;display:flex;gap:6px;border-top:0;padding:0 0 10px;background:none;box-shadow:none;max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
   body.editing .tabs{display:flex}
-  .tab{flex-direction:row;height:auto;padding:8px 12px;border-radius:6px;font-size:13px}
+  .tab{flex-direction:row;height:auto;padding:8px 14px;border-radius:999px;font-size:13px;gap:6px;color:rgba(255,255,255,.85)}
   .tab svg{width:16px;height:16px}
-  .tab[aria-selected="true"]{background:var(--accent-soft);color:var(--ink)}
-  .tab[aria-selected="true"]::before{display:none}
-  .tab .n{position:static}
-  .grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
-  .rx{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+  .tab[aria-selected="true"]{background:var(--on-brand);color:var(--brand)}
+  .tab .n{position:static;background:rgba(255,255,255,.22);color:inherit}
+  .tab[aria-selected="true"] .n{background:var(--accent-soft);color:var(--brand)}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+  .rx{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
   .list{grid-template-columns:repeat(3,minmax(0,1fr))}
   .sumgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .actions{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--line);margin-top:6px}
+  .actions{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--line);box-shadow:none;margin-top:6px}
   .actions .wrap{padding-left:0;padding-right:0}
   .actions .btn.primary{flex:0 0 auto}
   .toast,body.editing .toast{bottom:24px}
 }
+header button.btn{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.28);color:var(--on-brand);box-shadow:none}
+header button.btn.primary{background:var(--on-brand);border-color:var(--on-brand);color:var(--brand)}
+@media (prefers-reduced-motion:reduce){.item:active{transform:none}}
 </style>
 
 </head>
 <body class="signed-out">
 <header>
   <div class="wrap top">
+    <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3a2.4 2.4 0 0 1-3.4 0l-.6-.6a2.4 2.4 0 0 1 0-3.4L15 5"/><path d="m9 11 4 4"/><path d="m5 19-3 3"/></svg></div>
     <div class="brand">
-      <h1>Enoxaparin Study Collector</h1>
+      <h1>Enoxaparin Study</h1>
       <p id="whoami">General Surgery &amp; Gynecology · pharmacist data collection</p>
     </div>
     <button class="btn primary icon" id="exportBtn" type="button" aria-label="Export to Excel"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="export-label">Export to Excel</span></button>
@@ -219,14 +258,14 @@ body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signe
 
   <section id="v-patients">
     <div class="bar">
-      <input class="search" id="search" type="search" placeholder="Search patient code" aria-label="Search patients">
+      <input class="search" id="search" type="search" placeholder="Search name or code" aria-label="Search patients">
       <select id="wardFilter" aria-label="Filter by ward">
         <option value="">All wards</option><option>General Surgery</option><option>Gynecology</option>
       </select>
       <button class="btn primary" id="newPatient" type="button">+ New patient</button>
     </div>
     <div class="list" id="pRows"></div>
-    <div class="empty" id="pEmpty"><strong>No patients yet</strong>Tap “New patient” to enroll the first patient on enoxaparin. Use coded IDs only (GS-001, GY-001), never names.</div>
+    <div class="empty" id="pEmpty"><strong>No patients yet</strong>Tap “New patient” to enroll the first patient on enoxaparin.</div>
   </section>
 
   <section id="v-editor" hidden>
@@ -273,16 +312,35 @@ body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signe
   </section>
 </main>
 <div class="toast" id="toast" hidden></div>
+<div class="sheet" id="expSheet" hidden>
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="expTitle">
+    <h3 id="expTitle">Export to Excel</h3>
+    <p>Use the version without names for analysis and for sharing with your supervisor.</p>
+    <button class="btn primary" id="expNo" type="button">Without names (for analysis)</button>
+    <button class="btn" id="expYes" type="button">With patient names</button>
+    <button class="btn ghost" id="expCancel" type="button">Cancel</button>
+  </div>
+</div>
 
 <script>
 (function(){
 const YN=["Yes","No"], YNA=["Yes","No","N/A"];
 // Minimal schema: raw data only. Appropriateness is calculated by the app from the dosing rules.
 const REASONS=["Given despite contraindication","Unindicated (Caprini < 3)","No renal adjustment","Wrong frequency","Dose too high","Dose too low","Too close to surgery","Too close to spinal/epidural","First dose > 24 h after surgery"];
+// Caprini 2005 risk factors (orthopaedic-only items kept for completeness). Age, BMI and surgery points are added automatically.
+const CAP=[
+ ["cp_legs","Swollen legs",1],["cp_varic","Varicose veins",1],["cp_preg","Pregnant or postpartum",1],["cp_abort","History of unexplained or recurrent miscarriage",1],
+ ["cp_ocp","Oral contraceptive or HRT",1],["cp_sepsis","Sepsis (< 1 month)",1],["cp_lung","Serious lung disease or pneumonia (< 1 month)",1],["cp_copd","Abnormal lung function (COPD)",1],
+ ["cp_mi","Acute myocardial infarction",1],["cp_chf","Heart failure (< 1 month)",1],["cp_ibd","Inflammatory bowel disease",1],["cp_bedrest","Medical patient at bed rest",1],
+ ["cp_cancer","Cancer (present or previous)",2],["cp_bed72","Confined to bed > 72 h",2],["cp_cvc","Central venous line",2],["cp_cast","Immobilising plaster cast",2],
+ ["cp_vte","Previous DVT or PE",3],["cp_fam","Family history of DVT or PE",3],["cp_thromb","Known thrombophilia (factor V Leiden, lupus anticoagulant…)",3],["cp_hit","Heparin-induced thrombocytopenia",3],
+ ["cp_stroke","Stroke (< 1 month)",5],["cp_fract","Hip, pelvis or leg fracture",5],["cp_sci","Acute spinal cord injury (< 1 month)",5],["cp_arthro","Elective hip or knee replacement",5]
+];
 const P=[
  ["Patient",[
-  {k:"code",l:"Patient code",t:"text",req:1,h:"GS-001 / GY-001. No names."},
+  {k:"name",l:"Patient name",t:"text",req:1,wide:1},
   {k:"ward",l:"Ward",t:"sel",o:["General Surgery","Gynecology"],req:1},
+  {k:"code",l:"Study code",t:"text",req:1,h:"Filled automatically from the ward"},
   {k:"age",l:"Age (years)",t:"num"},
   {k:"sex",l:"Sex",t:"sel",o:["Male","Female"]},
   {k:"weight",l:"Weight (kg)",t:"num"},
@@ -290,12 +348,13 @@ const P=[
   {k:"bmi",l:"BMI (kg/m²)",calc:1},
   {k:"scr",l:"Serum creatinine (mg/dL)",t:"num",h:"µmol/L ÷ 88.4"},
   {k:"crcl",l:"CrCl (mL/min)",calc:1}]],
- ["Surgery & risk",[
-  {k:"surgType",l:"Surgery",t:"sel",o:["Major","Minor","No surgery"]},
+ ["Surgery",[
+  {k:"surgType",l:"Surgery",t:"sel",o:["Major","Minor","No surgery"],h:"Major = more than 45 min, open or laparoscopic"},
   {k:"anesthesia",l:"Anesthesia",t:"sel",o:["General","Spinal/epidural","None/local"]},
   {k:"surgDT",l:"Surgery date & time",t:"dt"},
-  {k:"caprini",l:"Caprini score",t:"num",h:"Number, e.g. 5"},
   {k:"bleedRisk",l:"Contraindication / high bleeding risk",t:"sel",o:YN,h:"Active bleeding, platelets <50, recent brain bleed"}]],
+ ["Caprini score",[
+  {k:"caprini",l:"Caprini score",calc:1,big:1}].concat(CAP.map(([k,l,pts])=>({k,l,t:"chk",pts})))],
  ["Enoxaparin order",[
   {k:"indication",l:"Indication",t:"sel",o:["Prophylaxis","Treatment"]},
   {k:"dose",l:"Dose (mg)",t:"num"},
@@ -308,6 +367,23 @@ const P=[
   {k:"thrombo",l:"Thrombocytopenia",t:"sel",o:YN,h:"Platelets <100 or fall >50%"},
   {k:"notes",l:"Notes",t:"area",wide:1}]]
 ];
+const SEC_STYLE={"Patient":["--s1",'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'],
+ "Surgery":["--s2",'<path d="M3 21h18"/><path d="M6 17 17 6l2 2L8 19z"/>'],
+ "Caprini score":["--s3",'<path d="M12 3v18"/><path d="M5 8h14"/><path d="M5 8l-3 7h6z"/><path d="M19 8l-3 7h6z"/>'],
+ "Enoxaparin order":["--s4",'<path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3a2.4 2.4 0 0 1-3.4 0l-.6-.6a2.4 2.4 0 0 1 0-3.4L15 5"/>'],
+ "Outcome during stay":["--s5",'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'],
+ "Dose":["--s4",'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'],
+ "Injection technique (observed)":["--s2",'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>'],
+ "Notes":["--s1",'<path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h6"/>']};
+function capScore(p,bmi){
+  const age=n(p.age);if(age==null||!p.surgType)return null;
+  const auto=[];
+  if(age>=75)auto.push([`Age ${age}`,3]);else if(age>=61)auto.push([`Age ${age}`,2]);else if(age>=41)auto.push([`Age ${age}`,1]);
+  if(bmi!=null&&bmi>25)auto.push([`BMI ${bmi}`,1]);
+  if(p.surgType==="Major")auto.push(["Major surgery",2]);else if(p.surgType==="Minor")auto.push(["Minor surgery",1]);
+  const picked=CAP.filter(([k])=>p[k]==="Yes");
+  return{auto,picked,total:auto.reduce((a,x)=>a+x[1],0)+picked.reduce((a,x)=>a+x[2],0)};
+}
 const TECH=[["t1","Hand hygiene / gloves"],["t2","Abdomen, ≥5 cm from umbilicus"],["t3","Site rotated from last dose"],["t4","Air bubble NOT expelled"],["t5","Skin fold held throughout"],["t6","Needle at 90°, full length"],["t7","Site NOT rubbed after"]];
 const D=[
  ["Dose",[
@@ -323,8 +399,9 @@ const PF=P.flatMap(s=>s[1]), DF=D.flatMap(s=>s[1]);
 const n=v=>{if(v===""||v==null)return null;const x=parseFloat(v);return isFinite(x)?x:null};
 const r1=x=>Math.round(x*10)/10;
 function calcP(p){
-  const o={};const w=n(p.weight),h=n(p.height),age=n(p.age),scr=n(p.scr),cap=n(p.caprini),dose=n(p.dose);
+  const o={};const w=n(p.weight),h=n(p.height),age=n(p.age),scr=n(p.scr),dose=n(p.dose);
   if(w&&h)o.bmi=r1(w/Math.pow(h/100,2));
+  const cs=capScore(p,o.bmi);o.capInfo=cs;o.caprini=cs?cs.total:null;const cap=o.caprini;
   if(age!=null&&w&&scr&&p.sex)o.crcl=Math.round((140-age)*w/(72*scr)*(p.sex==="Female"?0.85:1));
   if(p.firstDT&&p.surgDT)o.hrsSurg=r1((Date.parse(p.firstDT)-Date.parse(p.surgDT))/36e5);
   const renal=o.crcl!=null&&o.crcl<30, proph=p.indication==="Prophylaxis";
@@ -363,6 +440,7 @@ let toastT;function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;c
 function status(kind,msg){const s=$("status");s.replaceChildren();if(msg)s.append(el("div",{class:"notice "+kind,text:msg}))}
 
 const isSeg=f=>f.t==="sel"&&f.o&&f.o.length<=3;
+const isChk=f=>f.t==="chk";
 function segField(id,opts){
   const g=el("div",{class:"seg",role:"radiogroup",id,"aria-labelledby":id+"_l"});
   opts.forEach(o=>g.append(el("label",null,el("input",{type:"radio",name:id,value:o}),el("span",{text:o}))));
@@ -373,9 +451,14 @@ function segField(id,opts){
 function buildForm(form,schema,prefix){
   form.replaceChildren();
   schema.forEach(([sec,fields],si)=>{
-    const g=el("div",{class:"grid"});
+    const g=el("div",{class:"grid"});let lastPts=null;
+    if(fields.some(isChk))g.append(el("div",{class:"capAuto",id:prefix+"capAuto"}));
     for(const f of fields){
       const id=prefix+f.k;let input,lab;
+      if(isChk(f)){
+        if(f.pts!==lastPts){g.append(el("div",{class:"ptsHead",text:f.pts===1?"1 point each":f.pts+" points each"}));lastPts=f.pts}
+        g.append(el("label",{class:"chk",for:id},el("input",{type:"checkbox",id}),el("span",{text:f.l})));continue;
+      }
       if(isSeg(f)){input=segField(id,f.o);lab=el("span",{class:"lbl",id:id+"_l",text:f.l+(f.req?" *":"")})}
       else{
         if(f.calc){input=el("input",{id,readonly:"",tabindex:"-1"})}
@@ -384,21 +467,24 @@ function buildForm(form,schema,prefix){
         else{input=el("input",{id,type:{num:"number",date:"date",dt:"datetime-local",time:"time",text:"text"}[f.t]||"text"});if(f.t==="num"){input.setAttribute("step","any");input.setAttribute("inputmode","decimal")}}
         lab=el("label",{for:id,text:f.l+(f.req?" *":"")});
       }
-      const wrap=el("div",{class:"f"+(f.calc?" calc":"")+(f.wide||f.t==="area"?" wide":"")},lab,input);
+      const wrap=el("div",{class:"f"+(f.calc?" calc":"")+(f.big?" big wide":"")+(f.wide||f.t==="area"?" wide":"")},lab,input);
       if(f.h)wrap.append(el("span",{class:"hint",text:f.h}));
       g.append(wrap);
     }
-    const sum=el("summary",null,el("span",{text:sec}),el("span",{class:"prog",id:prefix+"prog"+si}));
-    const d=el("details",{class:"sec",open:""},sum,g);
+    const st=SEC_STYLE[sec]||["--s1",""];
+    const dot=el("span",{class:"dot","aria-hidden":"true"});dot.innerHTML=`<svg viewBox="0 0 24 24">${st[1]}</svg>`;
+    const sum=el("summary",null,dot,el("span",{text:sec}),el("span",{class:"prog",id:prefix+"prog"+si}));
+    const d=el("details",{class:"sec",open:"",style:`--sc:var(${st[0]})`},sum,g);
     form.append(d);
   });
 }
 function readForm(fields,prefix){const o={};for(const f of fields){if(f.calc)continue;const id=prefix+f.k;
-  if(isSeg(f)){const c=document.querySelector(`input[name="${id}"]:checked`);o[f.k]=c?c.value:""}
+  if(isChk(f)){o[f.k]=$(id).checked?"Yes":""}
+  else if(isSeg(f)){const c=document.querySelector(`input[name="${id}"]:checked`);o[f.k]=c?c.value:""}
   else{const v=$(id).value;o[f.k]=typeof v==="string"?v.trim():v}}return o}
 function fillForm(fields,prefix,data){for(const f of fields){if(f.calc)continue;const id=prefix+f.k,v=data&&data[f.k]!=null?String(data[f.k]):"";
-  if(isSeg(f))document.querySelectorAll(`input[name="${id}"]`).forEach(r=>r.checked=r.value===v);else $(id).value=v}}
-function prog(schema,prefix,data){schema.forEach(([s,fs],i)=>{const inF=fs.filter(f=>!f.calc);const done=inF.filter(f=>data[f.k]).length;const e=$(prefix+"prog"+i);if(e)e.textContent=`${done}/${inF.length}`})}
+  if(isChk(f))$(id).checked=v==="Yes";else if(isSeg(f))document.querySelectorAll(`input[name="${id}"]`).forEach(r=>r.checked=r.value===v);else $(id).value=v}}
+function prog(schema,prefix,data){schema.forEach(([s,fs],i)=>{const e0=$(prefix+"prog"+i);if(fs.some(isChk)){if(e0){const c=calcP(data).caprini;e0.textContent=c==null?"—":c+" pts"}return}const inF=fs.filter(f=>!f.calc);const done=inF.filter(f=>data[f.k]).length;const e=$(prefix+"prog"+i);if(e)e.textContent=`${done}/${inF.length}`})}
 
 // ---------- state ----------
 let db=null,user=null,uid=null,canWrite=true;
@@ -417,6 +503,7 @@ $("tab-patients").onclick=()=>show("patients");
 $("tab-doses").onclick=()=>show("doses");
 $("tab-summary").onclick=()=>{renderSummary();show("summary")};
 
+function wardChip(w){return w?el("span",{class:"chip "+(w==="Gynecology"?"gy":"gs"),text:w==="Gynecology"?"Gynecology":"Gen. Surgery"}):null}
 function chip(text){const cls=text==="Appropriate"||text==="Match"||text==="Yes"||text==="Good"||text==="On time"?"ok":text==="N/A"?"inc":text==="Inappropriate"||text==="No"||text==="Poor"||text==="Missed"?"bad":text==="Review"?"warn":"inc";return el("span",{class:"chip "+cls,text})}
 
 function itemCard(main,right,line2,meta,onOpen){
@@ -428,14 +515,15 @@ function m(label,val){return el("span",null,label+" ",el("b",{text:val}))}
 function renderPatients(){
   $("nP").textContent=patients.length;
   const q=$("search").value.trim().toLowerCase(),w=$("wardFilter").value;
-  const rows=patients.filter(p=>(!w||p.ward===w)&&(!q||(p.code||"").toLowerCase().includes(q)))
+  const rows=patients.filter(p=>(!w||p.ward===w)&&(!q||(p.code||"").toLowerCase().includes(q)||(p.name||"").toLowerCase().includes(q)))
     .sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||""));
   const box=$("pRows");box.replaceChildren();
   for(const p of rows){
     const c=calcP(p);
-    const meta=el("div",{class:"meta"},m("Rx",p.dose?`${p.dose} mg ${p.freq||""}`:"—"),m("CrCl",fmt(c.crcl)));
+    const meta=el("div",{class:"meta"},wardChip(p.ward),m("Rx",p.dose?`${p.dose} mg ${p.freq||""}`:"—"),m("CrCl",fmt(c.crcl)),m("Caprini",fmt(c.caprini)));
     const by=names[p.updatedBy]||names[p.createdBy];if(by)meta.append(el("span",{text:"· "+by}));
-    box.append(itemCard(el("span",{class:"code",text:p.code}),chip(c.overall),[p.ward,p.indication,c.reason].filter(Boolean).join(" · "),meta,()=>openPatient(p)));
+    const who=el("span",{class:"who"},el("span",{class:"pname",text:p.name||p.code}),el("span",{class:"code",text:p.code}));
+    box.append(itemCard(who,chip(c.overall),[p.indication,c.reason].filter(Boolean).join(" · "),meta,()=>openPatient(p)));
   }
   $("pEmpty").hidden=rows.length>0;
   $("pEmpty").firstChild.textContent=patients.length?"No patients match this filter":"No patients yet";
@@ -449,7 +537,9 @@ function renderDoses(){
   for(const d of rows){
     const c=calcD(d);
     const meta=el("div",{class:"meta"},m("Technique",c.assessed?`${c.correct}/${c.assessed}`:"—"));
-    box.append(itemCard(el("span",{class:"code",text:d.code}),c.tech?chip(c.tech):chip(d.status||"—"),
+    const pt=patients.find(x=>x.code===d.code);
+    const who=el("span",{class:"who"},el("span",{class:"pname",text:(pt&&pt.name)||d.code}),el("span",{class:"code",text:d.code}));
+    box.append(itemCard(who,c.tech?chip(c.tech):chip(d.status||"—"),
       [d.date,d.status].filter(Boolean).join(" · "),meta,()=>openDose(d)));
   }
   $("dEmpty").hidden=rows.length>0;
@@ -460,20 +550,24 @@ buildForm($("pForm"),P,"p_");
 function updateRx(){
   const p=readForm(PF,"p_"),c=calcP(p);
   for(const f of PF)if(f.calc)$("p_"+f.k).value=c[f.k]!=null?c[f.k]:"";
+  const ca=$("p_capAuto");if(ca){ca.replaceChildren();if(c.capInfo){ca.append(el("span",{text:"Added automatically:"}));c.capInfo.auto.forEach(([l,pt])=>ca.append(el("span",{class:"chip",text:`${l} +${pt}`})));if(!c.capInfo.auto.length)ca.append(el("span",{text:"none"}))}else ca.append(el("span",{text:"Enter age and surgery type to calculate the score."}))}
   const rx=$("rx");rx.replaceChildren();
   for(const[k,v]of[["Indication",c.indR],["Dose",c.doseR],["Timing",c.timR],["Overall",c.overall]]){const d=el("div",null,el("span",{text:k}));d.append(v?chip(v):el("b",{text:"—"}));rx.append(d)}
-  if(c.reason){const d=el("div",{style:"grid-column:1/-1"},el("span",{text:"Why"}),el("b",{text:c.reason+(c.doseWhy&&c.expected?` (expected ${c.expected})`:"")}));rx.append(d)}
+  if(c.reason){const d=el("div",{class:"why"},el("span",{text:"Why"}),el("b",{text:c.reason+(c.doseWhy&&c.expected?` (expected ${c.expected})`:"")}));rx.append(d)}
   prog(P,"p_",p);
 }
-$("pForm").addEventListener("input",updateRx);$("pForm").addEventListener("change",updateRx);
+function nextCode(ward){const pre=ward==="Gynecology"?"GY":"GS";let mx=0;patients.forEach(p=>{const mm=(p.code||"").match(new RegExp("^"+pre+"-(\\d+)$"));if(mm)mx=Math.max(mx,+mm[1])});return`${pre}-${String(mx+1).padStart(3,"0")}`}
+function autoCode(){if(editing)return;const c=$("p_code"),w=document.querySelector('input[name="p_ward"]:checked');if(w&&(!c.value||c.dataset.auto==="1")){c.value=nextCode(w.value);c.dataset.auto="1"}}
+$("p_code").addEventListener("input",()=>{$("p_code").dataset.auto=""});
+$("pForm").addEventListener("input",updateRx);$("pForm").addEventListener("change",()=>{autoCode();updateRx()});
 function openPatient(p){
   editing=p||null;fillForm(PF,"p_",p);
-  $("p_code").readOnly=!!p;
-  $("edTitle").textContent=p?`Patient ${p.code}`:"New patient";
+  $("p_code").readOnly=!!p;$("p_code").dataset.auto=p?"":"1";
+  $("edTitle").textContent=p?(p.name||p.code):"New patient";
   $("edMsg").textContent=canWrite?"Enter the data only. The result (appropriate or not) is calculated automatically from the dosing rules.":"Your email is not on the study team yet, so changes cannot be saved.";
   $("saveP").disabled=!canWrite;
   const dz=$("delZone");dz.replaceChildren();
-  if(p&&canWrite){const b=el("button",{class:"btn danger",type:"button",text:"Delete"});b.onclick=()=>confirmDel(dz,`Delete ${p.code} and all its dose records?`,async()=>{await sbDel("patients",p._id);toast(`Deleted ${p.code}`);show("patients")});dz.append(b)}
+  if(p&&canWrite){const b=el("button",{class:"btn danger",type:"button",text:"Delete"});b.onclick=()=>confirmDel(dz,`Delete ${p.name||p.code} and all their dose records?`,async()=>{await sbDel("patients",p._id);toast(`Deleted ${p.name||p.code}`);show("patients")});dz.append(b)}
   updateRx();show("editor");
 }
 function confirmDel(zone,msg,fn){
@@ -497,7 +591,7 @@ function errText(e){
 async function sbDel(table,id){const{error}=await sb.from(table).delete().eq("id",id);if(error)throw new Error(errText(error));await loadAll()}
 $("saveP").onclick=async()=>{
   const p=readForm(PF,"p_");
-  if(!p.code||!p.ward){toast("Patient code and ward are required");return}
+  if(!p.name||!p.ward||!p.code){toast("Patient name, ward and study code are required");return}
   if(!session){toast("Sign in to save");return}
   const{code,ward,...rest}=p;
   const btn=$("saveP");btn.disabled=true;
@@ -507,7 +601,7 @@ $("saveP").onclick=async()=>{
     const{data,error}=await q;
     if(error)throw error;
     if(!data||!data.length)throw{code:"42501"};
-    toast(`Saved ${code}`);await loadAll();show("patients");
+    toast(`Saved ${p.name}`);await loadAll();show("patients");
   }catch(e){toast(errText(e))}
   btn.disabled=!canWrite;
 };
@@ -516,7 +610,7 @@ $("saveP").onclick=async()=>{
 buildForm($("dForm"),D,"d_");
 function refreshPatientSelect(){
   const s=$("d_code"),cur=s.value;s.replaceChildren(el("option",{value:"",text:"— choose patient —"}));
-  [...patients].sort((a,b)=>a.code.localeCompare(b.code)).forEach(p=>s.append(el("option",{value:p.code,text:`${p.code} · ${p.ward||""}`})));
+  [...patients].sort((a,b)=>a.code.localeCompare(b.code)).forEach(p=>s.append(el("option",{value:p.code,text:`${p.code} · ${p.name||p.ward||""}`})));
   s.value=cur;
 }
 function updateDrx(){
@@ -570,10 +664,10 @@ function renderSummary(){
   const wards=["","General Surgery","Gynecology"];
   const cnt=(arr,f)=>arr.filter(f).length;
   const mean=(arr,k)=>{const v=arr.map(x=>n(x.p[k])).filter(x=>x!=null);return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):"—"};
-  const base=[["Patients enrolled",x=>true],["Female",x=>x.p.sex==="Female"],["Major surgery",x=>x.p.surgType==="Major"],["Spinal/epidural anesthesia",x=>x.p.anesthesia==="Spinal/epidural"],["Prophylaxis",x=>x.p.indication==="Prophylaxis"],["Treatment",x=>x.p.indication==="Treatment"],["Caprini ≥ 5",x=>n(x.p.caprini)>=5],["CrCl < 30 mL/min",x=>x.c.crcl!=null&&x.c.crcl<30],["BMI ≥ 40",x=>x.c.bmi!=null&&x.c.bmi>=40]];
+  const base=[["Patients enrolled",x=>true],["Female",x=>x.p.sex==="Female"],["Major surgery",x=>x.p.surgType==="Major"],["Spinal/epidural anesthesia",x=>x.p.anesthesia==="Spinal/epidural"],["Prophylaxis",x=>x.p.indication==="Prophylaxis"],["Treatment",x=>x.p.indication==="Treatment"],["Caprini ≥ 5",x=>x.c.caprini!=null&&x.c.caprini>=5],["CrCl < 30 mL/min",x=>x.c.crcl!=null&&x.c.crcl<30],["BMI ≥ 40",x=>x.c.bmi!=null&&x.c.bmi>=40]];
   const t1=base.map(([l,f])=>[td(l),...wards.map(w=>td(cnt(by(w),f),"num"))]);
-  t1.splice(1,0,[td("Mean age (years)"),...wards.map(w=>td(mean(by(w),"age"),"num"))],[td("Mean Caprini score"),...wards.map(w=>td(mean(by(w),"caprini"),"num"))]);
-  box.append(card("Table 1 · Patient characteristics",["Measure","All","Gen. Surgery","Gynecology"],t1));
+  t1.splice(1,0,[td("Mean age (years)"),...wards.map(w=>td(mean(by(w),"age"),"num"))],[td("Mean Caprini score"),...wards.map(w=>{const v=by(w).map(x=>x.c.caprini).filter(x=>x!=null);return td(v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):"—","num")})]);
+  box.append(card("Table 1 · Patient characteristics",["Measure","All","Gen. Surg.","Gyn."],t1));
   const rows=[["Indication","indR"],["Dose & frequency","doseR"],["Timing vs surgery","timR"]].map(([l,k])=>{const y=cnt(C,x=>x.c[k]==="Appropriate"),no=cnt(C,x=>x.c[k]==="Inappropriate");return[td(l),td(y,"num"),td(no,"num"),pctCell(y,y+no)]});
   wards.forEach(w=>{const a=cnt(by(w),x=>x.c.overall==="Appropriate"),b=cnt(by(w),x=>x.c.overall==="Inappropriate");rows.push([el("td",null,el("strong",{text:"Overall · "+(w||"all wards")})),td(a,"num"),td(b,"num"),pctCell(a,a+b)])});
   const ren=C.filter(x=>x.c.crcl!=null&&x.c.crcl<30&&x.c.doseR),renOk=cnt(ren,x=>x.c.doseR==="Appropriate");
@@ -593,16 +687,23 @@ function renderSummary(){
 
 // ---------- export ----------
 const asDate=s=>{if(!s)return"";const d=new Date(s.length===10?s+"T00:00":s);return isNaN(d)?s:d};
-$("exportBtn").onclick=async()=>{
+$("exportBtn").onclick=()=>{$("expSheet").hidden=false;$("expNo").focus()};
+$("expCancel").onclick=()=>{$("expSheet").hidden=true};
+$("expSheet").addEventListener("click",e=>{if(e.target===$("expSheet"))$("expSheet").hidden=true});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("expSheet").hidden=true});
+$("expNo").onclick=()=>{$("expSheet").hidden=true;doExport(false)};
+$("expYes").onclick=()=>{$("expSheet").hidden=true;doExport(true)};
+function doExport(withNames){
   if(typeof XLSX==="undefined"){toast("The Excel library did not load. Reload the page and try again.");return}
     // Patient sheet: schema order + auto-check columns before judgement
-  const cols=[];for(const[sec,fs]of P){if(sec==="Outcome during stay"){cols.push({k:"indR",l:"Indication result",calc:1},{k:"doseR",l:"Dose result",calc:1},{k:"timR",l:"Timing result",calc:1},{k:"overall",l:"Overall result",calc:1},{k:"reason",l:"Reason",calc:1})}fs.forEach(f=>cols.push(f))}
+  const cols=[];for(const[sec,fs]of P){if(sec==="Outcome during stay"){cols.push({k:"indR",l:"Indication result",calc:1},{k:"doseR",l:"Dose result",calc:1},{k:"timR",l:"Timing result",calc:1},{k:"overall",l:"Overall result",calc:1},{k:"reason",l:"Reason",calc:1})}fs.forEach(f=>{if(isChk(f))return;if(f.k==="name"&&!withNames)return;cols.push(f)});if(sec==="Caprini score")cols.push({k:"_capf",l:"Caprini factors"})}
   cols.push({k:"_by",l:"Data collector"},{k:"updatedAt",l:"Last updated"});
   const dateCols=new Set([]),dtCols=new Set(["surgDT","firstDT"]);
   const sorted=[...patients].sort((a,b)=>a.code.localeCompare(b.code));
   const pa=[cols.map(c=>c.l)];
   for(const p of sorted){const c=calcP(p);pa.push(cols.map(f=>{
     if(f.k==="_by")return names[p.updatedBy]||names[p.createdBy]||"";
+    if(f.k==="_capf")return c.capInfo?[...c.capInfo.auto.map(([l,pt])=>`${l} (+${pt})`),...c.capInfo.picked.map(([,l,pt])=>`${l} (+${pt})`)].join("; "):"";
     if(f.calc){const v=c[f.k];return v==null||(f.k==="overall"&&v==="Incomplete"&&false)?"":v}
     const v=p[f.k];if(v==null||v==="")return"";
     if(dateCols.has(f.k)||dtCols.has(f.k))return asDate(v);
@@ -613,22 +714,22 @@ $("exportBtn").onclick=async()=>{
   ws1["!cols"]=cols.map(c=>({wch:Math.min(30,Math.max(10,c.l.length*0.75))}));ws1["!freeze"]={xSplit:2,ySplit:1};
   // Administration sheet
   const dcols=[...DF.filter(f=>f.k!=="notes"),{k:"correct",l:"Steps correct",calc:1},{k:"assessed",l:"Steps assessed",calc:1},{k:"score",l:"Technique score (%)",calc:1},{k:"tech",l:"Technique (Good/Poor)",calc:1},{k:"notes",l:"Notes"},{k:"_by",l:"Data collector"}];
-  const wardOf=Object.fromEntries(patients.map(p=>[p.code,p.ward]));
-  dcols.splice(1,0,{k:"_ward",l:"Ward"});
+  const wardOf=Object.fromEntries(patients.map(p=>[p.code,p.ward])),nameOf=Object.fromEntries(patients.map(p=>[p.code,p.name||""]));
+  dcols.splice(1,0,{k:"_ward",l:"Ward"});if(withNames)dcols.splice(1,0,{k:"_name",l:"Patient name"});
   const da=[dcols.map(c=>c.l)];
   for(const d of [...doses].sort((a,b)=>(a.code+a.date).localeCompare(b.code+b.date))){const c=calcD(d);da.push(dcols.map(f=>{
-    if(f.k==="_ward")return wardOf[d.code]||"";if(f.k==="_by")return names[d.updatedBy]||names[d.createdBy]||"";
+    if(f.k==="_ward")return wardOf[d.code]||"";if(f.k==="_name")return nameOf[d.code]||"";if(f.k==="_by")return names[d.updatedBy]||names[d.createdBy]||"";
     if(f.calc){const v=c[f.k];return v==null?"":v}
     if(f.k==="date")return asDate(d.date);const v=d[f.k];return v==null?"":v}))}
   const ws2=XLSX.utils.aoa_to_sheet(da);
-  for(let r=1;r<da.length;r++){const a=XLSX.utils.encode_cell({r,c:2});if(ws2[a]&&ws2[a].t==="n")ws2[a].z="dd/mm/yyyy";const s=XLSX.utils.encode_cell({r,c:dcols.findIndex(f=>f.k==="score")});if(ws2[s]&&ws2[s].t==="n")ws2[s].z="0%"}
+  const dateCol=dcols.findIndex(f=>f.k==="date");for(let r=1;r<da.length;r++){const a=XLSX.utils.encode_cell({r,c:dateCol});if(ws2[a]&&ws2[a].t==="n")ws2[a].z="dd/mm/yyyy";const s=XLSX.utils.encode_cell({r,c:dcols.findIndex(f=>f.k==="score")});if(ws2[s]&&ws2[s].t==="n")ws2[s].z="0%"}
   ws2["!cols"]=dcols.map(c=>({wch:Math.min(26,Math.max(9,c.l.length*0.75))}));
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws1,"Patient Data");XLSX.utils.book_append_sheet(wb,ws2,"Administration");
   const stamp=new Date().toISOString().slice(0,10);
-  try{XLSX.writeFile(wb,`Enoxaparin_study_data_${stamp}.xlsx`);toast(`Exported ${sorted.length} patients and ${doses.length} dose records`)}
+  try{XLSX.writeFile(wb,`Enoxaparin_study_${withNames?"with_names":"anonymised"}_${stamp}.xlsx`);toast(`Exported ${sorted.length} patients and ${doses.length} dose records`)}
   catch(e){toast("Export failed: "+(e.message||e))}
-};
+}
 
 // ---------- Supabase ----------
 const SB_URL="https://gxfsbsdhrsshsddjjwba.supabase.co";
@@ -662,7 +763,7 @@ async function startApp(){
   if(!canWrite){status("warn",`${email} is signed in but is not on the study team list. Ask the study owner to add this email.`);return}
   try{await loadAll()}catch(e){status("bad","Could not load study data: "+errText(e));return}
   $("whoami").textContent=`Signed in as ${who(email.toLowerCase())}`;
-  status("info","Use coded patient IDs only. Every entry is shared with the study team as soon as you press Save.");
+  status("info","Patient names are visible only to the study team. Use “Without names” when you export for analysis.");
   if(!channel){channel=sb.channel("study").on("postgres_changes",{event:"*",schema:"public",table:"patients"},scheduleReload).on("postgres_changes",{event:"*",schema:"public",table:"doses"},scheduleReload).subscribe()}
 }
 renderPatients();renderDoses();

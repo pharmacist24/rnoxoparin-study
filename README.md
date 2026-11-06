@@ -38,10 +38,11 @@ To remove someone, delete their `team_members` row. They keep a login but can no
 
 ## Features
 
-The form is deliberately short: **20 entries per patient and 11 per observed dose**. The pharmacist enters raw data only; there are no judgement fields. The Excel sheet **Why these variables** lists the reason and source study for each field.
+The form is deliberately short: **21 entries per patient, plus the Caprini checklist, and 11 per observed dose**. The pharmacist enters raw data only; there are no judgement fields. The Excel sheet **Why these variables** lists the reason and source study for each field.
 
-- **Patient (20 entries):** code, ward, age, sex, weight, height, creatinine, surgery type, anesthesia, surgery time, Caprini score (number), contraindication, indication, dose, frequency, first-dose time, days on enoxaparin, bleeding, thrombocytopenia and notes.
-- **Auto-calculated:** BMI, Cockcroft–Gault CrCl, and hours from surgery to first dose.
+- **Patient (21 entries):** name, ward, study code (filled automatically: GS-001, GY-001…), age, sex, weight, height, creatinine, surgery type, anesthesia, surgery time, contraindication, indication, dose, frequency, first-dose time, days on enoxaparin, bleeding, thrombocytopenia and notes.
+- **Caprini calculator:** tick the risk factors from the 2005 Caprini checklist. Age, BMI > 25 and surgery type are added automatically.
+- **Auto-calculated:** BMI, Cockcroft–Gault CrCl, Caprini score, and hours from surgery to first dose.
 - **Calculated results:** Indication, Dose, Timing, Overall and Reason, from these rules:
   - Indication is inappropriate if there is a contraindication, or if prophylaxis is given with Caprini < 3.
   - Prophylaxis dose: 40 mg OD; 30 mg OD if CrCl < 30; 40 mg BID if BMI ≥ 40.
@@ -58,9 +59,9 @@ The form is deliberately short: **20 entries per patient and 11 per observed dos
 
 ## Data protection
 
-- Enter **coded IDs only** (GS-001 / GY-001). Never enter names or file numbers.
-- Keep the key that links codes to patients offline.
-- Record a finding before making any safety intervention, as the protocol requires.
+- Patient names are stored in the Supabase database. Only signed-in team members can read them, enforced by row-level security. They are never stored in this repository.
+- **Export → Without names** gives an anonymised file (study codes only) for analysis and for sharing.
+- Get ethics-committee approval for recording names. Delete names at the end of data collection if the protocol requires it.
 
 ## Reference standards
 
