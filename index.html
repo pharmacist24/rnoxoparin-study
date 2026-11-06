@@ -748,8 +748,15 @@ function timedFetch(url,opts={}){const c=new AbortController();const t=setTimeou
   if(opts.signal){if(opts.signal.aborted)c.abort();else opts.signal.addEventListener("abort",()=>c.abort())}
   return fetch(url,{...opts,signal:c.signal}).finally(()=>clearTimeout(t))}
 const withTimeout=(p,ms,msg)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error(msg||"timed out")),ms))]);
-const sb=window.supabase?window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,lock:async(_n,_t,fn)=>await fn()},global:{fetch:timedFetch}}):null;
-let session=null,channel=null;
+const lockQ={};
+async function tabLock(name,acquireTimeout,fn){
+  const prev=lockQ[name]||Promise.resolve();let release;const mine=new Promise(r=>release=r);
+  lockQ[name]=prev.then(()=>mine);
+  await Promise.race([prev,new Promise(r=>setTimeout(r,acquireTimeout>0?acquireTimeout:10000))]);
+  try{return await fn()}finally{release()}
+}
+const sb=window.supabase?window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,lock:tabLock},global:{fetch:timedFetch}}):null;
+let session=null,channel=null,outP=null; // outP: pending sign-out; a new sign-in waits for it
 const who=e=>e?(names[e]||e.split("@")[0]):"";
 function rowP(r){return{...(r.data||{}),code:r.code,ward:r.ward,_id:r.id,createdBy:r.created_by_email,updatedBy:r.updated_by_email,updatedAt:r.updated_at}}
 function rowD(r){return{...(r.data||{}),code:r.patient_code,date:r.dose_date,_id:r.id,createdBy:r.created_by_email,updatedBy:r.updated_by_email,updatedAt:r.updated_at}}
@@ -764,29 +771,31 @@ async function loadAll(){
 let reloadT;function scheduleReload(){clearTimeout(reloadT);reloadT=setTimeout(()=>loadAll().catch(()=>{}),500)}
 function showLogin(){
   document.body.classList.add("signed-out");document.body.classList.remove("editing");$("v-login").hidden=false;
+  $("lgBtn").disabled=false;$("lgBtn").textContent="Sign in";status("");
   patients=[];doses=[];renderPatients();renderDoses();
   if(channel){sb.removeChannel(channel);channel=null}
 }
-let starting=false;
+let gen=0;
 async function startApp(){
-  if(starting)return;starting=true;
+  const my=++gen;const stale=()=>my!==gen||!session;
   document.body.classList.remove("signed-out");$("v-login").hidden=true;
   if($("v-patients").hidden&&$("v-doses").hidden&&$("v-summary").hidden&&$("v-editor").hidden&&$("v-dose-editor").hidden)show("patients");
   const email=session.user.email||"";
   status("info","Loading study data…");
   try{
     const m=await withTimeout(sb.rpc("is_team_member"),20000);
+    if(stale())return;
     if(m.error)throw m.error;
     canWrite=m.data===true;
     $("newPatient").disabled=!canWrite;$("newDose").disabled=!canWrite;
     if(!canWrite){status("warn",`${email} is signed in but is not on the study team list. Ask the study owner to add this email.`);return}
     await withTimeout(loadAll(),25000);
+    if(stale())return;
     $("whoami").textContent=`Signed in as ${who(email.toLowerCase())}`;
     status("info","Patient names are visible only to the study team. Use “Without names” when you export for analysis.");
     if(!channel){channel=sb.channel("study").on("postgres_changes",{event:"*",schema:"public",table:"patients"},scheduleReload).on("postgres_changes",{event:"*",schema:"public",table:"doses"},scheduleReload).subscribe()}
     loaded=true;
-  }catch(e){status("bad","Could not load the study data. "+errText(e),()=>startApp())}
-  finally{starting=false}
+  }catch(e){if(!stale())status("bad","Could not load the study data. "+errText(e),()=>startApp())}
 }
 let loaded=false;
 // When the phone wakes up or the tab comes back, refresh quietly instead of needing a page reload
@@ -804,15 +813,19 @@ else{
     e.preventDefault();$("lgErr").textContent="";
     const email=$("lgEmail").value.trim(),password=$("lgPass").value;
     if(!email||!password){$("lgErr").textContent="Enter your email and password.";return}
+    if($("lgBtn").disabled)return;
     $("lgBtn").disabled=true;$("lgBtn").textContent="Signing in…";
     let data,error;
-    try{({data,error}=await withTimeout(sb.auth.signInWithPassword({email,password}),20000))}catch(e){error=e}
+    try{if(outP)await outP;({data,error}=await withTimeout(sb.auth.signInWithPassword({email,password}),20000))}catch(e){error=e}
     $("lgBtn").disabled=false;$("lgBtn").textContent="Sign in";
     if(error){$("lgErr").textContent=/invalid/i.test(error.message)?"Email or password is incorrect.":errText(error);return}
     session=data.session;$("lgPass").value="";startApp();
   });
-  $("signOut").onclick=async()=>{try{await withTimeout(sb.auth.signOut(),8000)}catch(e){}try{for(const k of Object.keys(localStorage))if(k.startsWith("sb-"))localStorage.removeItem(k)}catch(e){}session=null;loaded=false;showLogin()};
-  sb.auth.onAuthStateChange((ev,s)=>{if(ev==="SIGNED_OUT"){session=null;showLogin()}else if(s)session=s});
+  $("signOut").onclick=()=>{if(outP)return;
+    gen++;session=null;loaded=false;canWrite=false;showLogin();$("whoami").textContent="General Surgery & Gynecology · pharmacist data collection";
+    outP=withTimeout(sb.auth.signOut({scope:"local"}),5000).catch(()=>{}).then(()=>{try{for(const k of Object.keys(localStorage))if(k.startsWith("sb-"))localStorage.removeItem(k)}catch(e){}}).finally(()=>{outP=null});
+  };
+  sb.auth.onAuthStateChange((ev,s)=>{if(ev==="SIGNED_OUT"){if(session&&!outP){session=null;loaded=false;gen++;showLogin()}}else if(s)session=s});
   withTimeout(sb.auth.getSession(),10000).then(({data})=>{session=data.session;session?startApp():showLogin()})
     .catch(()=>{showLogin();$("lgErr").textContent="Couldn't restore your sign-in. Please sign in again."});
 }
