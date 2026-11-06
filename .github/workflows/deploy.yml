@@ -18,6 +18,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Download libraries so the site serves them itself
+        run: |
+          mkdir -p vendor
+          curl -fsSL https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js -o vendor/supabase.min.js
+          curl -fsSL https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js -o vendor/xlsx.full.min.js
+          ls -la vendor
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
