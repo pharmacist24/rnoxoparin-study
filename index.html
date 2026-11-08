@@ -69,7 +69,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:lin
 
 
 /* bottom tab bar (phone) */
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));box-shadow:0 -4px 16px rgba(15,31,54,.06)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));box-shadow:0 -4px 16px rgba(15,31,54,.06)}
 body.editing .tabs{display:none}
 .tab{appearance:none;border:0;background:none;color:var(--muted);font:700 12px var(--sans);height:calc(var(--nav-h) - 12px);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;position:relative}
 .tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
@@ -195,6 +195,24 @@ body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signe
 .login h2{margin:0;font-size:22px;font-weight:800}
 .login p{margin:0;color:var(--muted);font-size:14px}
 .login .err{color:var(--bad);font-size:14px;min-height:1.2em}
+.login .ok{color:var(--ok);font-size:14px;font-weight:700;min-height:1.2em}
+.linkbtn{appearance:none;background:none;border:0;color:var(--accent);font:800 14px var(--sans);cursor:pointer;padding:6px 0;text-align:left;justify-self:start}
+.switch{display:flex;gap:6px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:14px}
+/* team */
+.team{display:grid;gap:14px}
+.trow{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.trow:last-child{border-bottom:0}
+.trow .who{flex:1 1 180px;min-width:0;display:flex;flex-direction:column;gap:1px}
+.trow .who strong{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trow .who span,.trow .who small{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+button.btn.sm{min-height:40px;padding:0 14px;font-size:14px}
+.trow .acts{display:flex;gap:8px;flex:0 0 auto;margin-left:auto}
+.tnote{margin:0;padding:14px 16px;color:var(--muted);font-size:14px}
+.addf{display:grid;gap:10px;padding:14px 16px 16px}
+.addf .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.addf .row input[type=email]{flex:1 1 200px}
+.ownerchk{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--muted)}
+.ownerchk input{width:20px;height:20px;min-height:0;margin:0;accent-color:var(--accent)}
 #signOut{padding:0 12px}
 
 /* ---------- larger screens ---------- */
@@ -249,18 +267,31 @@ header button.btn.primary{background:var(--on-brand);border-color:var(--on-brand
     <button class="tab" role="tab" id="tab-patients" aria-selected="true" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Patients<span class="n" id="nP">0</span></button>
     <button class="tab" role="tab" id="tab-doses" aria-selected="false" type="button"><svg viewBox="0 0 24 24"><path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3a2.4 2.4 0 0 1-3.4 0l-.6-.6a2.4 2.4 0 0 1 0-3.4L15 5"/><path d="m9 11 4 4"/><path d="m5 19-3 3"/></svg>Doses<span class="n" id="nD">0</span></button>
     <button class="tab" role="tab" id="tab-summary" aria-selected="false" type="button"><svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>Summary</button>
+    <button class="tab" role="tab" id="tab-team" aria-selected="false" type="button" hidden><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 3-5.5 6.5-5.5s6.5 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.6c2.9.2 5 1.9 5 4.9"/></svg>Team<span class="n" id="nT" hidden>0</span></button>
   </nav>
 </header>
 
 <section class="wrap login" id="v-login">
   <form id="loginForm" novalidate>
     <h2>Sign in</h2>
-    <p>For pharmacists on the enoxaparin study team. Your account is created by the study owner.</p>
+    <p>For pharmacists on the enoxaparin study team.</p>
     <div class="f"><label for="lgEmail">Email</label><input id="lgEmail" type="email" autocomplete="username" inputmode="email" required></div>
     <div class="f"><label for="lgPass">Password</label><input id="lgPass" type="password" autocomplete="current-password" required></div>
     <div class="err" id="lgErr" role="alert"></div>
     <button class="btn primary" id="lgBtn" type="submit">Sign in</button>
+    <div class="switch">New to the study?<button class="linkbtn" id="toSignup" type="button">Create an account</button></div>
     <p>Forgot your password? Ask the study owner to reset it.</p>
+  </form>
+  <form id="signupForm" novalidate hidden>
+    <h2>Create an account</h2>
+    <p>After you sign up, the study owner approves your account. Then you can see and enter study data.</p>
+    <div class="f"><label for="suName">Full name</label><input id="suName" type="text" autocomplete="name" required></div>
+    <div class="f"><label for="suEmail">Email</label><input id="suEmail" type="email" autocomplete="username" inputmode="email" required></div>
+    <div class="f"><label for="suPass">Password</label><input id="suPass" type="password" autocomplete="new-password" minlength="8" required><span class="hint">At least 8 characters</span></div>
+    <div class="f"><label for="suPass2">Repeat password</label><input id="suPass2" type="password" autocomplete="new-password" required></div>
+    <div class="err" id="suErr" role="alert"></div>
+    <button class="btn primary" id="suBtn" type="submit">Create account</button>
+    <div class="switch">Already have an account?<button class="linkbtn" id="toLogin" type="button">Sign in</button></div>
   </form>
 </section>
 
@@ -316,6 +347,20 @@ header button.btn.primary{background:var(--on-brand);border-color:var(--on-brand
       <button class="btn" id="cancelD" type="button">Cancel</button>
       <button class="btn primary" id="saveD" type="button">Save dose</button>
     </div></div>
+  </section>
+
+  <section id="v-team" hidden>
+    <div class="team">
+      <div class="card"><h3>Waiting for approval</h3><div id="reqList"></div></div>
+      <div class="card"><h3>Study team</h3><div id="memList"></div></div>
+      <div class="card"><h3>Pre-approve a pharmacist</h3>
+        <form class="addf" id="addForm" novalidate>
+          <div class="row"><input id="addEmail" type="email" inputmode="email" placeholder="colleague@email.com" aria-label="Email to approve"><button class="btn primary sm" id="addBtn" type="submit">Approve email</button></div>
+          <label class="ownerchk"><input id="addOwner" type="checkbox"> Also make them an owner (can approve others)</label>
+          <span class="hint">When this person creates an account with this email, they get access straight away.</span>
+        </form>
+      </div>
+    </div>
   </section>
 
   <section id="v-summary" hidden>
@@ -508,9 +553,9 @@ const fmt=v=>v==null||v===""?"—":String(v);
 
 // ---------- views ----------
 function show(view){
-  ["patients","editor","doses","dose-editor","summary"].forEach(v=>$("v-"+v).hidden=v!==view);
+  ["patients","editor","doses","dose-editor","summary","team"].forEach(v=>$("v-"+v).hidden=v!==view);
   const tab=view==="editor"?"patients":view==="dose-editor"?"doses":view;
-  ["patients","doses","summary"].forEach(t=>$("tab-"+t).setAttribute("aria-selected",String(t===tab)));
+  ["patients","doses","summary","team"].forEach(t=>$("tab-"+t).setAttribute("aria-selected",String(t===tab)));
   document.body.classList.toggle("editing",view==="editor"||view==="dose-editor");window.scrollTo(0,0);
 }
 $("tab-patients").onclick=()=>show("patients");
@@ -854,6 +899,7 @@ const ago=t=>{const m=Math.round((Date.now()-t)/60000);return m<1?"just now":m<6
 let reloadT;function scheduleReload(){clearTimeout(reloadT);reloadT=setTimeout(()=>loadAll().catch(()=>{}),500)}
 function showLogin(){
   document.body.classList.add("signed-out");document.body.classList.remove("editing");$("v-login").hidden=false;
+  isOwner=false;$("tab-team").hidden=true;$("signupForm").hidden=true;$("loginForm").hidden=false;
   $("lgBtn").disabled=false;$("lgBtn").textContent="Sign in";status("");
   patients=[];doses=[];renderPatients();renderDoses();netPill();
   if(channel){sb.removeChannel(channel);channel=null}
@@ -864,9 +910,10 @@ let gen=0,loaded=false;
 async function startApp(){
   const my=++gen;const stale=()=>my!==gen||!session;
   document.body.classList.remove("signed-out");$("v-login").hidden=true;
-  if($("v-patients").hidden&&$("v-doses").hidden&&$("v-summary").hidden&&$("v-editor").hidden&&$("v-dose-editor").hidden)show("patients");
+  if($("v-patients").hidden&&$("v-doses").hidden&&$("v-summary").hidden&&$("v-editor").hidden&&$("v-dose-editor").hidden&&$("v-team").hidden)show("patients");
   const email=(session.user.email||"").toLowerCase();me=email;loadLocal();
   const wasMember=LS.get(K("member"),false)===true;
+  isOwner=LS.get(K("owner"),false)===true;$("tab-team").hidden=!isOwner;
   if(wasMember){canWrite=true;setButtons();view()} // open instantly from the copy on this phone
   $("whoami").textContent=`Signed in as ${who(email)}`;netPill();
   if(!navigator.onLine&&wasMember){loaded=true;status("warn",`You're offline. Showing the copy saved on this phone${srv.at?` (updated ${ago(srv.at)})`:""}. New entries are saved here and upload automatically.`);return}
@@ -876,7 +923,14 @@ async function startApp(){
     if(stale())return;
     if(m.error)throw m.error;
     canWrite=m.data===true;LS.set(K("member"),canWrite);setButtons();
-    if(!canWrite){patients=[];doses=[];renderPatients();renderDoses();status("warn",`${email} is signed in but is not on the study team list. Ask the study owner to add this email.`);return}
+    if(!canWrite){
+      patients=[];doses=[];renderPatients();renderDoses();isOwner=false;$("tab-team").hidden=true;
+      try{await withTimeout(sb.rpc("request_access"),10000)}catch(e){}
+      if(stale())return;
+      status("warn",`Your account (${email}) is waiting for approval by the study owner. You'll get access as soon as it's approved.`,()=>startApp(),"Check again");return}
+    try{const o=await withTimeout(sb.rpc("is_owner"),10000);isOwner=!o.error&&o.data===true}catch(e){}
+    if(stale())return;
+    LS.set(K("owner"),isOwner);$("tab-team").hidden=!isOwner;if(isOwner)loadTeam().catch(()=>{});
     await withTimeout(fetchServer(),25000);
     if(stale())return;
     view();loaded=true;$("whoami").textContent=`Signed in as ${who(email)}`;
@@ -892,7 +946,7 @@ async function startApp(){
 document.addEventListener("visibilitychange",()=>{
   if(document.visibilityState!=="visible"||!session)return;
   if(!loaded){startApp();return}
-  sync();if(navigator.onLine)withTimeout(loadAll(),20000).catch(()=>{});
+  sync();if(navigator.onLine){withTimeout(loadAll(),20000).catch(()=>{});if(isOwner)loadTeam().catch(()=>{})}
 });
 window.addEventListener("online",()=>{netPill();if(session){toast("Back online");startApp()}});
 window.addEventListener("offline",()=>{netPill();if(session)status("warn","You're offline. Keep working: entries are saved on this phone and upload when the internet returns.")});
@@ -914,7 +968,7 @@ else{
   });
   function doSignOut(){
     gen++;
-    LS.del(K("cache"));LS.del(K("member"));LS.del(K("outbox"));LS.del(K("failed"));outbox=[];failed=[];srv={patients:[],doses:[],names:{},at:0};
+    LS.del(K("cache"));LS.del(K("member"));LS.del(K("owner"));LS.del(K("outbox"));LS.del(K("failed"));outbox=[];failed=[];srv={patients:[],doses:[],names:{},at:0};
     session=null;loaded=false;canWrite=false;showLogin();$("whoami").textContent="General Surgery & Gynecology · pharmacist data collection";
     outP=withTimeout(sb.auth.signOut({scope:"local"}),5000).catch(()=>{}).then(()=>{try{for(const k of Object.keys(localStorage))if(k.startsWith("sb-"))localStorage.removeItem(k)}catch(e){}}).finally(()=>{outP=null});
   }
@@ -927,6 +981,70 @@ else{
   withTimeout(sb.auth.getSession(),10000).then(({data})=>{session=data.session;session?startApp():showLogin()})
     .catch(()=>{showLogin();$("lgErr").textContent="Couldn't restore your sign-in. Please sign in again."});
 }
+
+// ---------- team (owners only) ----------
+let isOwner=false,team={reqs:[],mems:[]};
+async function loadTeam(){
+  const[a,b]=await Promise.all([sb.from("access_requests").select("*").order("requested_at"),sb.from("team_members").select("*").order("added_at")]);
+  if(a.error)throw a.error;if(b.error)throw b.error;
+  team={reqs:a.data,mems:b.data};
+  for(const m of b.data)names[m.email]=m.display_name||m.email.split("@")[0];
+  $("nT").textContent=team.reqs.length;$("nT").hidden=!team.reqs.length;renderTeam();
+}
+function renderTeam(){
+  const rl=$("reqList");rl.replaceChildren();
+  if(!team.reqs.length)rl.append(el("p",{class:"tnote",text:"No one is waiting. New accounts appear here for you to approve."}));
+  for(const r of team.reqs){
+    const ap=el("button",{class:"btn primary sm",type:"button",text:"Approve"}),rj=el("button",{class:"btn ghost sm",type:"button",text:"Reject"});
+    ap.onclick=()=>teamAct(ap,"approve_member",{p_email:r.email,p_owner:false},`${r.display_name||r.email} can now use the app`);
+    rj.onclick=()=>{if(rj.dataset.sure)teamAct(rj,"reject_request",{p_email:r.email},"Request rejected");else{rj.dataset.sure="1";rj.textContent="Tap again to reject";rj.classList.add("danger")}};
+    rl.append(el("div",{class:"trow"},el("div",{class:"who"},el("strong",{text:r.display_name||"(no name given)"}),el("span",{text:r.email}),el("small",{text:"Asked "+ago(Date.parse(r.requested_at))})),el("div",{class:"acts"},rj,ap)));
+  }
+  const ml=$("memList");ml.replaceChildren();
+  for(const m of team.mems){
+    const self=m.email===me;
+    const row=el("div",{class:"trow"},el("div",{class:"who"},el("strong",{text:(m.display_name||m.email.split("@")[0])+(self?" (you)":"")}),el("span",{text:m.email})),
+      el("span",{class:"chip "+(m.role==="owner"?"gs":"inc"),text:m.role==="owner"?"Owner":"Pharmacist"}));
+    if(!self){const rm=el("button",{class:"btn ghost sm",type:"button",text:"Remove"});
+      rm.onclick=()=>{if(rm.dataset.sure)teamAct(rm,"remove_member",{p_email:m.email},"Removed from the team");else{rm.dataset.sure="1";rm.textContent="Tap again to remove";rm.classList.add("danger")}};row.append(rm)}
+    ml.append(row);
+  }
+}
+async function teamAct(btn,fn,args,okMsg){
+  if(!navigator.onLine){toast("Team changes need internet.");return false}
+  btn.disabled=true;
+  try{const{error}=await withTimeout(sb.rpc(fn,args),15000);if(error)throw error;toast(okMsg);await loadTeam();return true}
+  catch(e){toast(e.code==="22023"||e.code==="42501"?e.message:errText(e));btn.disabled=false;return false}
+}
+$("addForm").addEventListener("submit",async e=>{
+  e.preventDefault();const em=$("addEmail").value.trim().toLowerCase();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast("Enter a valid email address");return}
+  if(await teamAct($("addBtn"),"approve_member",{p_email:em,p_owner:$("addOwner").checked},`${em} is approved. They can now create their account.`)){$("addEmail").value="";$("addOwner").checked=false;$("addBtn").disabled=false}
+});
+$("tab-team").onclick=()=>{show("team");renderTeam();if(navigator.onLine)loadTeam().catch(e=>toast(errText(e)));else toast("You're offline. Team changes need internet.")};
+
+// ---------- create an account ----------
+$("toSignup").onclick=()=>{$("loginForm").hidden=true;$("signupForm").hidden=false;$("suErr").textContent="";$("suEmail").value=$("suEmail").value||$("lgEmail").value;$("suName").focus()};
+$("toLogin").onclick=()=>{$("signupForm").hidden=true;$("loginForm").hidden=false;$("lgEmail").focus()};
+$("signupForm").addEventListener("submit",async e=>{
+  e.preventDefault();const er=$("suErr");er.textContent="";er.className="err";
+  const name=$("suName").value.trim(),email=$("suEmail").value.trim().toLowerCase(),pw=$("suPass").value,pw2=$("suPass2").value;
+  if(!name||!email||!pw){er.textContent="Fill in your name, email and password.";return}
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){er.textContent="Enter a valid email address.";return}
+  if(pw.length<8){er.textContent="Use at least 8 characters for the password.";return}
+  if(pw!==pw2){er.textContent="The two passwords don't match.";return}
+  if(!navigator.onLine){er.textContent="Creating an account needs internet.";return}
+  if(!sb){er.textContent="The app could not load its database library. Reload and try again.";return}
+  const b=$("suBtn");if(b.disabled)return;b.disabled=true;b.textContent="Creating account…";
+  let data,error;
+  try{if(outP)await outP;({data,error}=await withTimeout(sb.auth.signUp({email,password:pw,options:{data:{full_name:name}}}),20000))}catch(x){error=x}
+  b.disabled=false;b.textContent="Create account";
+  if(error){const msg=String(error.message||"");er.textContent=/already|registered|exists/i.test(msg)?"This email already has an account. Sign in instead.":/password/i.test(msg)?msg:/rate|too many/i.test(msg)?"Too many sign-ups just now. Wait a few minutes and try again.":errText(error);return}
+  if(data&&data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0){er.textContent="This email already has an account. Sign in instead.";return}
+  $("suPass").value="";$("suPass2").value="";$("lgEmail").value=email;
+  if(data&&data.session){session=data.session;$("signupForm").hidden=true;$("loginForm").hidden=false;startApp();return}
+  er.className="ok";er.textContent="Account created. Open the confirmation email we sent you, then come back and sign in.";
+});
 
 // ---------- installable app ----------
 let installEvt=null;

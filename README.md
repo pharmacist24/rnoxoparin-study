@@ -39,7 +39,15 @@ How offline works:
 - If two pharmacists use the same study code while offline, the second one is renumbered automatically when it uploads, and its dose records move with it.
 - Signing out deletes this phone's copy. If changes haven't uploaded yet, the app warns you first.
 
-## Adding a pharmacist
+## Accounts and approval
+
+- **Creating an account:** on the sign-in screen, tap *Create an account* and enter your full name, email and password.
+- **Approval:** a new account can't see any study data until an owner approves it. Requests appear in the **Team** tab, which only owners see, and a number on the tab shows how many are waiting.
+- **Pre-approving:** in the Team tab, an owner can approve an email in advance. That person gets access as soon as they create their account.
+- **Removing someone:** owners can remove members in the Team tab. Removing yourself is blocked.
+- **Enforcement:** all of this is enforced in the database by row-level security and owner-only functions, not just hidden in the app.
+
+## Adding a pharmacist (dashboard alternative)
 
 Do both steps in the Supabase dashboard:
 
