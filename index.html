@@ -208,7 +208,7 @@ body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signe
 .trow .who strong{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trow .who span,.trow .who small{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 button.btn.sm{min-height:40px;padding:0 14px;font-size:14px}
-.trow .acts{display:flex;gap:8px;flex:0 0 auto;margin-left:auto;align-items:center}
+.trow .acts{display:flex;gap:8px;flex:0 1 auto;margin-left:auto;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .chip.fl{background:color-mix(in srgb,var(--s4) 16%,var(--surface));color:var(--s4)}
 select.flsel.need{border-color:var(--warn);color:var(--warn)}
 select.flsel{width:auto;min-height:40px;padding:6px 10px;font-size:14px;font-weight:700}
@@ -300,11 +300,11 @@ header button.btn.primary{background:var(--on-brand);border-color:var(--on-brand
     <div class="err" id="lgErr" role="alert"></div>
     <button class="btn primary" id="lgBtn" type="submit">Sign in</button>
     <div class="switch">New to the study?<button class="linkbtn" id="toSignup" type="button">Create an account</button></div>
-    <p>Forgot your password? Ask the study owner to reset it.</p>
+    <p>Forgot your password? Ask a study admin to reset it.</p>
   </form>
   <form id="signupForm" novalidate hidden>
     <h2>Create an account</h2>
-    <p>After you sign up, the study owner approves your account. Then you can see and enter study data.</p>
+    <p>After you sign up, a study admin approves your account. Then you can see and enter study data.</p>
     <div class="f"><label for="suName">Full name</label><input id="suName" type="text" autocomplete="name" required></div>
     <div class="f"><label for="suEmail">Email</label><input id="suEmail" type="email" autocomplete="username" inputmode="email" required></div>
     <div class="f"><label for="suPass">Password</label><input id="suPass" type="password" autocomplete="new-password" minlength="8" required><span class="hint">At least 8 characters</span></div>
@@ -366,7 +366,7 @@ header button.btn.primary{background:var(--on-brand);border-color:var(--on-brand
           <div class="row"><input id="addEmail" type="email" inputmode="email" placeholder="colleague@email.com" aria-label="Email to approve">
             <select id="addFloor" class="flsel" aria-label="Floor"><option value="">Floor…</option><option value="2">Floor 2</option><option value="3">Floor 3</option><option value="4">Floor 4</option><option value="5">Floor 5</option></select>
             <button class="btn primary sm" id="addBtn" type="submit">Approve email</button></div>
-          <label class="ownerchk"><input id="addOwner" type="checkbox"> Also make them an owner (can approve others)</label>
+          <label class="ownerchk"><input id="addOwner" type="checkbox"> Make them an admin (sees all floors, approves others)</label>
           <span class="hint">When this person creates an account with this email, they get access straight away.</span>
         </form>
       </div>
@@ -672,7 +672,7 @@ function savePatient(extra,msg){
   const{code,ward,floor,...rest}=p;
   const fl=isOwner?n(floor):myFloor;
   if(isOwner&&!fl){toast("Choose the patient's floor (2 to 5)");return false}
-  if(!isOwner&&!myFloor){toast("Your account has no floor yet. Ask the study owner to assign one.");return false}
+  if(!isOwner&&!myFloor){toast("Your account has no floor yet. Ask a study admin to assign one.");return false}
   if(!editing&&patients.some(x=>x.code===code)){toast(`Study code ${code} is already used. Choose another.`);return false}
   const keep=editing?{completed:editing.completed||"",completedAt:editing.completedAt||""}:{};
   const id=editing?editing._id:uuid();
@@ -885,7 +885,7 @@ function showLogin(){
   if(channel){sb.removeChannel(channel);channel=null}
 }
 function setButtons(){$("newPatient").disabled=!canWrite||(!isOwner&&!myFloor)}
-function whoLine(email){return `${who(email)} · ${isOwner?"all floors":myFloor?"Floor "+myFloor:"no floor yet"}`}
+function whoLine(email){return `${who(email)} · ${isOwner?"admin · all floors":myFloor?"Floor "+myFloor:"no floor yet"}`}
 function applyRole(){document.body.classList.toggle("is-owner",!!isOwner);$("floorFilter").hidden=!isOwner;
   $("newPatient").disabled=!canWrite||(!isOwner&&!myFloor)}
 const NAMES_NOTE="Patient names are visible only to the study team. Use “Without names” when you export for analysis.";
@@ -910,7 +910,7 @@ async function startApp(){
       patients=[];doses=[];renderPatients();renderDoses();isOwner=false;$("tab-team").hidden=true;
       try{await withTimeout(sb.rpc("request_access"),10000)}catch(e){}
       if(stale())return;
-      status("warn",`Your account (${email}) is waiting for approval by the study owner. You'll get access as soon as it's approved.`,()=>startApp(),"Check again");return}
+      status("warn",`Your account (${email}) is waiting for approval by a study admin. You'll get access as soon as it's approved.`,()=>startApp(),"Check again");return}
     try{const o=await withTimeout(sb.rpc("is_owner"),10000);isOwner=!o.error&&o.data===true}catch(e){}
     try{const fr=await withTimeout(sb.rpc("my_floor"),10000);myFloor=fr.error||fr.data==null?null:Number(fr.data)}catch(e){}
     if(stale())return;
@@ -918,7 +918,7 @@ async function startApp(){
     await withTimeout(fetchServer(),25000);
     if(stale())return;
     view();loaded=true;$("whoami").textContent=whoLine(email);
-    if(!isOwner&&!myFloor)status("warn","Your account has no floor yet. Ask the study owner to assign you to a floor (2 to 5) in the Team tab.",()=>startApp(),"Check again");
+    if(!isOwner&&!myFloor)status("warn","Your account has no floor yet. Ask a study admin to assign you to a floor (2 to 5).",()=>startApp(),"Check again");
     else status("info",NAMES_NOTE);
     if(!channel){channel=sb.channel("study").on("postgres_changes",{event:"*",schema:"public",table:"patients"},scheduleReload).on("postgres_changes",{event:"*",schema:"public",table:"doses"},scheduleReload).subscribe()}
     sync();
@@ -990,12 +990,24 @@ function renderTeam(){
   const ml=$("memList");ml.replaceChildren();
   for(const m of team.mems){
     const self=m.email===me;
-    const row=el("div",{class:"trow"},el("div",{class:"who"},el("strong",{text:(m.display_name||m.email.split("@")[0])+(self?" (you)":"")}),el("span",{text:m.email})),
-      el("span",{class:"chip "+(m.role==="owner"?"gs":"inc"),text:m.role==="owner"?"Owner · all floors":"Pharmacist"}));
-    if(m.role!=="owner"){const fs=floorSel(m.floor,m.floor==null);if(m.floor==null)fs.classList.add("need");
-      fs.onchange=()=>{if(fs.value)teamAct(fs,"set_member_floor",{p_email:m.email,p_floor:+fs.value},`${m.display_name||m.email} moved to Floor ${fs.value}`)};row.append(fs)}
-    if(!self){const rm=el("button",{class:"btn ghost sm",type:"button",text:"Remove"});
-      rm.onclick=()=>{if(rm.dataset.sure)teamAct(rm,"remove_member",{p_email:m.email},"Removed from the team");else{rm.dataset.sure="1";rm.textContent="Tap again to remove";rm.classList.add("danger")}};row.append(rm)}
+    const nm=m.display_name||m.email.split("@")[0],admin=m.role==="owner",prim=!!m.is_primary;
+    const row=el("div",{class:"trow"},el("div",{class:"who"},el("strong",{text:nm+(self?" (you)":"")}),el("span",{text:m.email})),
+      el("span",{class:"chip "+(admin?"gs":"inc"),text:prim?"Study owner · all floors":admin?"Admin · all floors":"Pharmacist"}));
+    const acts=el("div",{class:"acts"});
+    if(!admin){const fs=floorSel(m.floor,m.floor==null);if(m.floor==null)fs.classList.add("need");
+      fs.onchange=()=>{if(fs.value)teamAct(fs,"set_member_floor",{p_email:m.email,p_floor:+fs.value},`${nm} moved to Floor ${fs.value}`)};acts.append(fs)}
+    if(!self&&!prim){
+      if(!admin){const mk=el("button",{class:"btn sm",type:"button",text:"Make admin"});
+        mk.onclick=()=>{if(mk.dataset.sure)teamAct(mk,"approve_member",{p_email:m.email,p_owner:true,p_floor:null},`${nm} is now an admin and sees all floors`);
+          else{mk.dataset.sure="1";mk.textContent="Tap again: make admin";mk.classList.add("primary")}};acts.append(mk)}
+      else{const dm=el("button",{class:"btn sm",type:"button",text:"Remove admin"});
+        dm.onclick=()=>{if(dm.dataset.step)return;dm.dataset.step="1";
+          const fs=floorSel(null,true);fs.classList.add("need");const ok=el("button",{class:"btn primary sm",type:"button",text:"Make pharmacist"});
+          ok.onclick=()=>{if(!fs.value){toast("Choose the floor they will work on");fs.focus();return}teamAct(ok,"approve_member",{p_email:m.email,p_owner:false,p_floor:+fs.value},`${nm} is now a pharmacist on Floor ${fs.value}`)};
+          dm.replaceWith(fs,ok);fs.focus()};acts.append(dm)}
+      const rm=el("button",{class:"btn ghost sm",type:"button",text:"Remove"});
+      rm.onclick=()=>{if(rm.dataset.sure)teamAct(rm,"remove_member",{p_email:m.email},"Removed from the team");else{rm.dataset.sure="1";rm.textContent="Tap again to remove";rm.classList.add("danger")}};acts.append(rm)}
+    if(acts.childNodes.length)row.append(acts);
     ml.append(row);
   }
 }
@@ -1003,14 +1015,14 @@ async function teamAct(btn,fn,args,okMsg){
   if(!navigator.onLine){toast("Team changes need internet.");return false}
   btn.disabled=true;
   try{const{error}=await withTimeout(sb.rpc(fn,args),15000);if(error)throw error;toast(okMsg);await loadTeam();return true}
-  catch(e){toast(e.code==="22023"||e.code==="42501"?e.message:errText(e));btn.disabled=false;return false}
+  catch(e){toast(e.code==="22023"||e.code==="42501"?e.message:errText(e));btn.disabled=false;loadTeam().catch(()=>{});return false}
 }
 $("addForm").addEventListener("submit",async e=>{
   e.preventDefault();const em=$("addEmail").value.trim().toLowerCase();
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast("Enter a valid email address");return}
   const own=$("addOwner").checked,flv=$("addFloor").value;
   if(!own&&!flv){toast("Choose the floor this pharmacist will work on");$("addFloor").focus();return}
-  if(await teamAct($("addBtn"),"approve_member",{p_email:em,p_owner:own,p_floor:own?null:+flv},`${em} is approved${own?" as an owner":" for Floor "+flv}. They can now create their account.`)){$("addEmail").value="";$("addOwner").checked=false;$("addFloor").value="";$("addBtn").disabled=false}
+  if(await teamAct($("addBtn"),"approve_member",{p_email:em,p_owner:own,p_floor:own?null:+flv},`${em} is approved${own?" as an admin":" for Floor "+flv}. They can now create their account.`)){$("addEmail").value="";$("addOwner").checked=false;$("addFloor").value="";$("addBtn").disabled=false}
 });
 $("tab-team").onclick=()=>{show("team");renderTeam();if(navigator.onLine)loadTeam().catch(e=>toast(errText(e)));else toast("You're offline. Team changes need internet.")};
 

@@ -49,7 +49,9 @@ How offline works:
 
 ## Floors
 
-- Every pharmacist works on **one floor (2, 3, 4 or 5)**. Owners see all floors.
+- Every pharmacist works on **one floor (2, 3, 4 or 5)**. Admins see all floors.
+- **Admins:** in the Team tab, an admin can tap **Make admin** (twice, to confirm) next to a pharmacist. To turn an admin back into a pharmacist, tap **Remove admin** and choose their floor.
+- **Study owner:** the study owner account (loaymis41@gmail.com) is protected. Other admins cannot demote, move or remove it, so the study always keeps its owner.
 - **Approving:** when an owner approves a new account in the Team tab, they must choose its floor. Owners can move a pharmacist to another floor at any time using the floor menu next to their name.
 - **What pharmacists see:** a pharmacist sees and edits **only the patients on their own floor**. Patients they add are saved on their floor automatically, and the database enforces this even if the app sent something else.
 - **What owners see:** owners get a *Floor* field in the patient form and a floor filter in the patient list. Patients created before floors existed show "No floor" until an owner sets one.
