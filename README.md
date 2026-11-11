@@ -58,7 +58,7 @@ To remove someone, delete their `team_members` row. They keep a login but can no
 
 ## Features
 
-The form is deliberately short: **21 entries per patient, plus the Caprini checklist, and 11 per observed dose**. The pharmacist enters raw data only; there are no judgement fields. The Excel sheet **Why these variables** lists the reason and source study for each field.
+The form is deliberately short: **21 entries per patient, plus the Caprini checklist**. The pharmacist enters raw data only; there are no judgement fields. The Excel sheet **Why these variables** lists the reason and source study for each field.
 
 - **Patient (21 entries):** name, ward, study code (filled automatically: GS-001, GY-001…), age, sex, weight, height, creatinine, surgery type, anesthesia, surgery time, contraindication, indication, dose, frequency, first-dose time, days on enoxaparin, bleeding, thrombocytopenia and notes.
 - **Caprini calculator:** tick the risk factors from the 2005 Caprini checklist. Age, BMI > 25 and surgery type are added automatically.
@@ -68,13 +68,14 @@ The form is deliberately short: **21 entries per patient, plus the Caprini check
   - Prophylaxis dose: 40 mg OD; 30 mg OD if CrCl < 30; 40 mg BID if BMI ≥ 40.
   - Treatment dose: 1 mg/kg BID or 1.5 mg/kg OD; 1 mg/kg OD if CrCl < 30. A ±10% margin is allowed.
   - Timing (prophylaxis): the first dose must be ≥ 12 h before surgery, or 12–24 h after it.
-- **Dose observation (11 entries):** patient, date, given on time / late / missed, and 7 injection-technique steps, scored Good (all correct) or Poor.
 - **Summary tab = results chapter:**
   - Table 1: patient characteristics
   - Table 2: appropriateness (calculated)
   - Table 3: reasons for inappropriate use
-  - Table 4: administration
-  - Table 5: safety
+  - Table 4: safety
+- **In ward / Completed:** the patient list has two tabs. Inside a patient, tap **✓ Complete** when data collection is finished (for example at discharge); the app warns if fields are still empty. **↺ Reopen** moves the patient back. The Excel export has *Status* and *Completed on* columns.
+- **Folded sections:** a patient's form opens with all sections closed; tap a section to open it.
+- **Night mode:** the moon/sun button in the header switches it, and each phone remembers its choice.
 - **Live updates:** when a colleague saves, everyone's list refreshes.
 
 ## Data protection

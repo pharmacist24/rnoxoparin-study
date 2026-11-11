@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#173f8a">
 <meta name="robots" content="noindex">
+<script>try{var t=localStorage.getItem("enox:theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <meta name="mobile-web-app-capable" content="yes">
@@ -207,6 +208,17 @@ body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signe
 .trow .who span,.trow .who small{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 button.btn.sm{min-height:40px;padding:0 14px;font-size:14px}
 .trow .acts{display:flex;gap:8px;flex:0 0 auto;margin-left:auto}
+/* status filter */
+.stseg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--sunk);border-radius:14px;margin-bottom:12px}
+.stseg button{appearance:none;border:0;background:none;color:var(--muted);font:800 14px var(--sans);min-height:42px;border-radius:11px;cursor:pointer}
+.stseg button span{font:600 12px var(--mono);margin-left:4px;padding:1px 7px;border-radius:999px;background:var(--surface)}
+.stseg button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.stseg button[aria-selected="true"] span{background:var(--accent-soft);color:var(--accent)}
+button.btn.done{color:var(--ok);border-color:var(--ok);background:transparent}
+.actions .ask{flex-wrap:wrap}
+.actions .ask span{flex:1 1 100%;font-size:14px;font-weight:600}
+.actions .ask .btn{flex:1}
+@media (min-width:600px){.actions .ask span{flex:1 1 auto}.actions .ask .btn{flex:0 0 auto}}
 .tnote{margin:0;padding:14px 16px;color:var(--muted);font-size:14px}
 .addf{display:grid;gap:10px;padding:14px 16px 16px}
 .addf .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -261,11 +273,11 @@ header button.btn.primary{background:var(--on-brand);border-color:var(--on-brand
     <button class="net" id="net" type="button" hidden></button>
     <button class="btn icon" id="installBtn" type="button" hidden aria-label="Install app" title="Install app"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 7v7"/><path d="m9 11 3 3 3-3"/></svg></button>
     <button class="btn primary icon" id="exportBtn" type="button" aria-label="Export to Excel"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="export-label">Export to Excel</span></button>
+    <button class="btn icon" id="themeBtn" type="button" aria-label="Night mode" title="Night mode"></button>
     <button class="btn icon" id="signOut" type="button" aria-label="Sign out" title="Sign out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></button>
   </div>
   <nav class="tabs" role="tablist" aria-label="Sections">
     <button class="tab" role="tab" id="tab-patients" aria-selected="true" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Patients<span class="n" id="nP">0</span></button>
-    <button class="tab" role="tab" id="tab-doses" aria-selected="false" type="button"><svg viewBox="0 0 24 24"><path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3a2.4 2.4 0 0 1-3.4 0l-.6-.6a2.4 2.4 0 0 1 0-3.4L15 5"/><path d="m9 11 4 4"/><path d="m5 19-3 3"/></svg>Doses<span class="n" id="nD">0</span></button>
     <button class="tab" role="tab" id="tab-summary" aria-selected="false" type="button"><svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>Summary</button>
     <button class="tab" role="tab" id="tab-team" aria-selected="false" type="button" hidden><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 3-5.5 6.5-5.5s6.5 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.6c2.9.2 5 1.9 5 4.9"/></svg>Team<span class="n" id="nT" hidden>0</span></button>
   </nav>
@@ -299,6 +311,10 @@ header button.btn.primary{background:var(--on-brand);border-color:var(--on-brand
   <div id="status"></div>
 
   <section id="v-patients">
+    <div class="stseg" role="tablist" aria-label="Patient status">
+      <button type="button" role="tab" id="stActive" aria-selected="true">In ward <span id="nAct">0</span></button>
+      <button type="button" role="tab" id="stDone" aria-selected="false">Completed <span id="nDone">0</span></button>
+    </div>
     <div class="bar">
       <input class="search" id="search" type="search" placeholder="Search name or code" aria-label="Search patients">
       <select id="wardFilter" aria-label="Filter by ward">
@@ -319,33 +335,14 @@ header button.btn.primary{background:var(--on-brand);border-color:var(--on-brand
     <p class="msg" id="edMsg"></p>
     <div id="delZone"></div>
     <form id="pForm" novalidate></form>
-    <div class="actions"><div class="wrap">
+    <div class="actions"><div class="wrap" id="actMain">
       <button class="btn" id="cancelP" type="button">Cancel</button>
-      <button class="btn primary" id="saveP" type="button">Save patient</button>
-    </div></div>
-  </section>
-
-  <section id="v-doses" hidden>
-    <div class="bar">
-      <span class="note">One record per dose, observed or from the nursing chart.</span>
-      <button class="btn primary" id="newDose" type="button">+ Record dose</button>
-    </div>
-    <div class="list" id="dRows"></div>
-    <div class="empty" id="dEmpty"><strong>No dose records yet</strong>Enroll the patient first, then record each observed or charted dose here.</div>
-  </section>
-
-  <section id="v-dose-editor" hidden>
-    <div class="editor-head">
-      <button class="btn" id="dBack" type="button" aria-label="Back to dose list">←</button>
-      <h2 id="dTitle">Record dose</h2>
-    </div>
-    <div class="rx" id="drx"></div>
-    <p class="msg" id="dMsg">Technique items apply to direct observation. Use N/A for chart review.</p>
-    <div id="dDelZone"></div>
-    <form id="dForm" novalidate></form>
-    <div class="actions"><div class="wrap">
-      <button class="btn" id="cancelD" type="button">Cancel</button>
-      <button class="btn primary" id="saveD" type="button">Save dose</button>
+      <button class="btn done" id="doneP" type="button">✓ Complete</button>
+      <button class="btn primary" id="saveP" type="button">Save</button>
+    </div><div class="wrap ask" id="actAsk" hidden>
+      <span id="askMsg"></span>
+      <button class="btn" id="askNo" type="button">Go back</button>
+      <button class="btn primary" id="askYes" type="button">Complete anyway</button>
     </div></div>
   </section>
 
@@ -533,7 +530,7 @@ function buildForm(form,schema,prefix){
     const st=SEC_STYLE[sec]||["--s1",""];
     const dot=el("span",{class:"dot","aria-hidden":"true"});dot.innerHTML=`<svg viewBox="0 0 24 24">${st[1]}</svg>`;
     const sum=el("summary",null,dot,el("span",{text:sec}),el("span",{class:"prog",id:prefix+"prog"+si}));
-    const d=el("details",{class:"sec",open:"",style:`--sc:var(${st[0]})`},sum,g);
+    const d=el("details",{class:"sec",style:`--sc:var(${st[0]})`},sum,g);
     form.append(d);
   });
 }
@@ -553,13 +550,12 @@ const fmt=v=>v==null||v===""?"—":String(v);
 
 // ---------- views ----------
 function show(view){
-  ["patients","editor","doses","dose-editor","summary","team"].forEach(v=>$("v-"+v).hidden=v!==view);
-  const tab=view==="editor"?"patients":view==="dose-editor"?"doses":view;
-  ["patients","doses","summary","team"].forEach(t=>$("tab-"+t).setAttribute("aria-selected",String(t===tab)));
-  document.body.classList.toggle("editing",view==="editor"||view==="dose-editor");window.scrollTo(0,0);
+  ["patients","editor","summary","team"].forEach(v=>$("v-"+v).hidden=v!==view);
+  const tab=view==="editor"?"patients":view;
+  ["patients","summary","team"].forEach(t=>$("tab-"+t).setAttribute("aria-selected",String(t===tab)));
+  document.body.classList.toggle("editing",view==="editor");window.scrollTo(0,0);
 }
 $("tab-patients").onclick=()=>show("patients");
-$("tab-doses").onclick=()=>show("doses");
 $("tab-summary").onclick=()=>{renderSummary();show("summary")};
 
 function wardChip(w){return w?el("span",{class:"chip "+(w==="Gynecology"?"gy":"gs"),text:w==="Gynecology"?"Gynecology":"Gen. Surgery"}):null}
@@ -571,38 +567,34 @@ function itemCard(main,right,line2,meta,onOpen){
   b.append(meta);b.onclick=onOpen;return b;
 }
 function m(label,val){return el("span",null,label+" ",el("b",{text:val}))}
+let stFilter="active";
+const isDone=p=>p.completed==="Yes";
+const dShort=iso=>{const d=new Date(iso);return isNaN(d)?"":d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})};
 function renderPatients(){
   $("nP").textContent=patients.length;
+  const nDone=patients.filter(isDone).length;$("nDone").textContent=nDone;$("nAct").textContent=patients.length-nDone;
   const q=$("search").value.trim().toLowerCase(),w=$("wardFilter").value;
-  const rows=patients.filter(p=>(!w||p.ward===w)&&(!q||(p.code||"").toLowerCase().includes(q)||(p.name||"").toLowerCase().includes(q)))
+  const rows=patients.filter(p=>(stFilter==="done"?isDone(p):!isDone(p))&&(!w||p.ward===w)&&(!q||(p.code||"").toLowerCase().includes(q)||(p.name||"").toLowerCase().includes(q)))
     .sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||""));
   const box=$("pRows");box.replaceChildren();
   for(const p of rows){
     const c=calcP(p);
     const meta=el("div",{class:"meta"},wardChip(p.ward),m("Rx",p.dose?`${p.dose} mg ${p.freq||""}`:"—"),m("CrCl",fmt(c.crcl)),m("Caprini",fmt(c.caprini)));
+    if(isDone(p))meta.append(el("span",{class:"chip ok",text:"✓ Completed"+(p.completedAt?" "+dShort(p.completedAt):"")}));
     const by=names[p.updatedBy]||names[p.createdBy];if(by)meta.append(el("span",{text:"· "+by}));if(p.pending)meta.append(chip("Not uploaded"));
     const who=el("span",{class:"who"},el("span",{class:"pname",text:p.name||p.code}),el("span",{class:"code",text:p.code}));
     box.append(itemCard(who,chip(c.overall),[p.indication,c.reason].filter(Boolean).join(" · "),meta,()=>openPatient(p)));
   }
   $("pEmpty").hidden=rows.length>0;
-  $("pEmpty").firstChild.textContent=patients.length?"No patients match this filter":"No patients yet";
+  const any=patients.some(p=>stFilter==="done"?isDone(p):!isDone(p));
+  $("pEmpty").firstChild.textContent=!patients.length?"No patients yet":!any?(stFilter==="done"?"No completed patients yet":"No patients in the ward list"):"No patients match this filter";
+  $("pEmpty").lastChild.textContent=stFilter==="done"&&!any?"Open a patient and tap “Complete” when their data collection is finished.":"Tap “New patient” to enroll the first patient on enoxaparin.";
 }
+function setStatus(v){stFilter=v;$("stActive").setAttribute("aria-selected",String(v==="active"));$("stDone").setAttribute("aria-selected",String(v==="done"));renderPatients()}
+$("stActive").onclick=()=>setStatus("active");$("stDone").onclick=()=>setStatus("done");
 $("search").oninput=renderPatients;$("wardFilter").onchange=renderPatients;
 
-function renderDoses(){
-  $("nD").textContent=doses.length;
-  const box=$("dRows");box.replaceChildren();
-  const rows=[...doses].sort((a,b)=>((b.date||"")+(b.updatedAt||"")).localeCompare((a.date||"")+(a.updatedAt||"")));
-  for(const d of rows){
-    const c=calcD(d);
-    const meta=el("div",{class:"meta"},m("Technique",c.assessed?`${c.correct}/${c.assessed}`:"—"));if(d.pending)meta.append(chip("Not uploaded"));
-    const pt=patients.find(x=>x.code===d.code);
-    const who=el("span",{class:"who"},el("span",{class:"pname",text:(pt&&pt.name)||d.code}),el("span",{class:"code",text:d.code}));
-    box.append(itemCard(who,c.tech?chip(c.tech):chip(d.status||"—"),
-      [d.date,d.status].filter(Boolean).join(" · "),meta,()=>openDose(d)));
-  }
-  $("dEmpty").hidden=rows.length>0;
-}
+function renderDoses(){} // dose observation removed from the app
 
 // ---------- patient editor ----------
 buildForm($("pForm"),P,"p_");
@@ -624,9 +616,11 @@ function openPatient(p){
   $("p_code").readOnly=!!p;$("p_code").dataset.auto=p?"":"1";
   $("edTitle").textContent=p?(p.name||p.code):"New patient";
   $("edMsg").textContent=canWrite?"Enter the data only. The result (appropriate or not) is calculated automatically from the dosing rules.":"Your email is not on the study team yet, so changes cannot be saved.";
-  $("saveP").disabled=!canWrite;
+  $("saveP").disabled=!canWrite;$("doneP").disabled=!canWrite;askDone(false);
+  $("doneP").textContent=p&&isDone(p)?"↺ Reopen":"✓ Complete";
+  document.querySelectorAll("#pForm details.sec").forEach(d=>{d.open=false});
   const dz=$("delZone");dz.replaceChildren();
-  if(p&&canWrite){const b=el("button",{class:"btn danger",type:"button",text:"Delete"});b.onclick=()=>confirmDel(dz,`Delete ${p.name||p.code} and all their dose records?`,async()=>{await sbDel("patients",p._id);toast(`Deleted ${p.name||p.code}`);show("patients")});dz.append(b)}
+  if(p&&canWrite){const b=el("button",{class:"btn danger",type:"button",text:"Delete"});b.onclick=()=>confirmDel(dz,`Delete ${p.name||p.code}? This cannot be undone.`,async()=>{await sbDel("patients",p._id);toast(`Deleted ${p.name||p.code}`);show("patients")});dz.append(b)}
   updateRx();show("editor");
 }
 function confirmDel(zone,msg,fn){
@@ -653,52 +647,30 @@ async function sbDel(table,id){
   enqueue({op:"delete",table,id,code});
 }
 const savedMsg=what=>navigator.onLine?`Saved ${what}`:`Saved ${what} on this phone. It will upload when you're online.`;
-$("saveP").onclick=()=>{
+function savePatient(extra,msg){
   const p=readForm(PF,"p_");
-  if(!p.name||!p.ward||!p.code){toast("Patient name, ward and study code are required");return}
-  if(!session){toast("Sign in to save");return}
+  if(!p.name||!p.ward||!p.code){toast("Patient name, ward and study code are required");return false}
+  if(!session){toast("Sign in to save");return false}
   const{code,ward,...rest}=p;
-  if(!editing&&patients.some(x=>x.code===code)){toast(`Study code ${code} is already used. Choose another.`);return}
+  if(!editing&&patients.some(x=>x.code===code)){toast(`Study code ${code} is already used. Choose another.`);return false}
+  const keep=editing?{completed:editing.completed||"",completedAt:editing.completedAt||""}:{};
   const id=editing?editing._id:uuid();
-  enqueue({op:"upsert",table:"patients",id,isNew:!editing,row:{code:editing?editing.code:code,ward,data:rest}});
-  toast(savedMsg(p.name));show("patients");
+  enqueue({op:"upsert",table:"patients",id,isNew:!editing,row:{code:editing?editing.code:code,ward,data:{...rest,...keep,...(extra||{})}}});
+  toast(msg||savedMsg(p.name));show("patients");return true;
+}
+$("saveP").onclick=()=>savePatient();
+function askDone(on){$("actMain").hidden=on;$("actAsk").hidden=!on}
+const markDone=()=>{askDone(false);const nm=$("p_name").value.trim()||"Patient";
+  if(savePatient({completed:"Yes",completedAt:new Date().toISOString()},`${nm} moved to Completed${navigator.onLine?"":" (saved on this phone)"}`))setStatus("active")};
+$("doneP").onclick=()=>{
+  if(editing&&isDone(editing)){const nm=editing.name||editing.code;savePatient({completed:"",completedAt:""},`${nm} moved back to In ward`);return}
+  const p=readForm(PF,"p_");
+  const empty=PF.filter(f=>!f.calc&&!isChk(f)&&f.k!=="notes"&&!p[f.k]).map(f=>f.l);
+  if(!empty.length){markDone();return}
+  $("askMsg").textContent=`${empty.length} field${empty.length>1?"s are":" is"} still empty (${empty.slice(0,3).join(", ")}${empty.length>3?"…":""}). Complete anyway?`;
+  askDone(true);
 };
-
-// ---------- dose editor ----------
-buildForm($("dForm"),D,"d_");
-function refreshPatientSelect(){
-  const s=$("d_code"),cur=s.value;s.replaceChildren(el("option",{value:"",text:"— choose patient —"}));
-  [...patients].sort((a,b)=>a.code.localeCompare(b.code)).forEach(p=>s.append(el("option",{value:p.code,text:`${p.code} · ${p.name||p.ward||""}`})));
-  s.value=cur;
-}
-function updateDrx(){
-  const d=readForm(DF,"d_"),c=calcD(d);
-  const rx=$("drx");rx.replaceChildren();
-  const st=el("div",null,el("span",{text:"Dose given"}));st.append(d.status?chip(d.status):el("b",{text:"—"}));rx.append(st);
-  rx.append(el("div",null,el("span",{text:"Steps correct"}),el("b",{text:c.assessed?`${c.correct}/${c.assessed}`:"—"})));
-  const tq=el("div",null,el("span",{text:"Technique"}));tq.append(c.tech?chip(c.tech):el("b",{text:"—"}));rx.append(tq);
-  prog(D,"d_",d);
-}
-$("dForm").addEventListener("input",updateDrx);$("dForm").addEventListener("change",updateDrx);
-function openDose(d){
-  editingDose=d||null;refreshPatientSelect();fillForm(DF,"d_",d);
-  $("dTitle").textContent=d?`Dose · ${d.code} · ${d.date||""}`:"Record dose";
-  $("saveD").disabled=!canWrite;
-  const dz=$("dDelZone");dz.replaceChildren();
-  if(d&&canWrite){const b=el("button",{class:"btn danger",type:"button",text:"Delete"});b.onclick=()=>confirmDel(dz,"Delete this dose record?",async()=>{await sbDel("doses",d._id);toast("Dose record deleted");show("doses")});dz.append(b)}
-  updateDrx();show("dose-editor");
-}
-$("newDose").onclick=()=>{if(!patients.length){toast("Enroll a patient first");return}openDose(null)};
-$("dBack").onclick=()=>show("doses");$("cancelD").onclick=()=>show("doses");
-$("saveD").onclick=()=>{
-  const d=readForm(DF,"d_");
-  if(!d.code||!d.date){toast("Patient and date are required");return}
-  if(!session){toast("Sign in to save");return}
-  const{code,date,...rest}=d;
-  const id=editingDose?editingDose._id:uuid();
-  enqueue({op:"upsert",table:"doses",id,isNew:!editingDose,row:{patient_code:code,dose_date:date,data:rest}});
-  toast(savedMsg("dose record"));show("doses");
-};
+$("askNo").onclick=()=>askDone(false);$("askYes").onclick=markDone;
 
 // ---------- summary ----------
 function pctCell(a,b){const td=el("td",{class:"pct"});if(!b){td.textContent="—";return td}const v=a/b;td.append(el("span",{text:(v*100).toFixed(1)+"%"}),el("div",{class:"meter"},el("i",{style:`width:${(v*100).toFixed(1)}%`})));return td}
@@ -727,13 +699,8 @@ function renderSummary(){
   const errs=REASONS.map(e=>[e,cnt(C,x=>(x.c.reason||"").split("; ").includes(e))]).filter(r=>r[1]>0).sort((a,b)=>b[1]-a[1]);
   const nInap=cnt(C,x=>x.c.overall==="Inappropriate");
   box.append(card("Table 3 · Reasons for inappropriate use",["Reason","n","% of inappropriate"],errs.length?errs.map(([e,c])=>[td(e),td(c,"num"),pctCell(c,nInap)]):[[td("None yet"),td(""),td("")]]));
-  const DC=doses.map(d=>({d,c:calcD(d)}));
-  const ar=[["On time","On time"],["Late >1 h","Late >1 h"],["Missed","Missed"]].map(([l,v])=>{const k=cnt(DC,x=>x.d.status===v);return[td("Dose "+l.toLowerCase()),td(k,"num"),td(""),pctCell(k,DC.length)]});
-  TECH.forEach(([k,l])=>{const y=cnt(DC,x=>x.d[k]==="Yes"),no=cnt(DC,x=>x.d[k]==="No");ar.push([td(l),td(y,"num"),td(no,"num"),pctCell(y,y+no)])});
-  const g=cnt(DC,x=>x.c.tech==="Good"),pr=cnt(DC,x=>x.c.tech==="Poor");ar.push([el("td",null,el("strong",{text:"Good technique (all steps)"})),td(g,"num"),td(pr,"num"),pctCell(g,g+pr)]);
-  box.append(card("Table 4 · Administration",["Measure","Yes / n","No","%"],ar));
   const oc=[["Minor bleeding",x=>x.p.bleed==="Minor"],["Major bleeding",x=>x.p.bleed==="Major"],["Thrombocytopenia",x=>x.p.thrombo==="Yes"]].map(([l,f])=>{const k=cnt(C,f);return[td(l),td(k,"num"),pctCell(k,C.length)]});
-  box.append(card("Table 5 · Safety",["Outcome","n","%"],oc));
+  box.append(card("Table 4 · Safety",["Outcome","n","%"],oc));
 }
 
 // ---------- export ----------
@@ -755,12 +722,15 @@ async function doExport(withNames){
   try{await loadXLSX()}catch(e){toast(e.message);return}
     // Patient sheet: schema order + auto-check columns before judgement
   const cols=[];for(const[sec,fs]of P){if(sec==="Outcome during stay"){cols.push({k:"indR",l:"Indication result",calc:1},{k:"doseR",l:"Dose result",calc:1},{k:"timR",l:"Timing result",calc:1},{k:"overall",l:"Overall result",calc:1},{k:"reason",l:"Reason",calc:1})}fs.forEach(f=>{if(isChk(f))return;if(f.k==="name"&&!withNames)return;cols.push(f)});if(sec==="Caprini score")cols.push({k:"_capf",l:"Caprini factors"})}
+  cols.splice(withNames?3:2,0,{k:"_status",l:"Status"},{k:"completedAt",l:"Completed on"});
   cols.push({k:"_by",l:"Data collector"},{k:"updatedAt",l:"Last updated"});
-  const dateCols=new Set([]),dtCols=new Set(["surgDT","firstDT"]);
+  const dateCols=new Set(["completedAt"]),dtCols=new Set(["surgDT","firstDT"]);
   const sorted=[...patients].sort((a,b)=>a.code.localeCompare(b.code));
   const pa=[cols.map(c=>c.l)];
   for(const p of sorted){const c=calcP(p);pa.push(cols.map(f=>{
     if(f.k==="_by")return names[p.updatedBy]||names[p.createdBy]||"";
+    if(f.k==="_status")return isDone(p)?"Completed":"In ward";
+    if(f.k==="completedAt")return p.completedAt?asDate(p.completedAt):"";
     if(f.k==="_capf")return c.capInfo?[...c.capInfo.auto.map(([l,pt])=>`${l} (+${pt})`),...c.capInfo.picked.map(([,l,pt])=>`${l} (+${pt})`)].join("; "):"";
     if(f.calc){const v=c[f.k];return v==null||(f.k==="overall"&&v==="Incomplete"&&false)?"":v}
     const v=p[f.k];if(v==null||v==="")return"";
@@ -770,22 +740,10 @@ async function doExport(withNames){
   const ws1=XLSX.utils.aoa_to_sheet(pa);
   cols.forEach((f,ci)=>{if(dateCols.has(f.k)||dtCols.has(f.k)){for(let r=1;r<pa.length;r++){const a=XLSX.utils.encode_cell({r,c:ci});if(ws1[a]&&ws1[a].t==="n")ws1[a].z=dateCols.has(f.k)?"dd/mm/yyyy":"dd/mm/yyyy hh:mm"}}});
   ws1["!cols"]=cols.map(c=>({wch:Math.min(30,Math.max(10,c.l.length*0.75))}));ws1["!freeze"]={xSplit:2,ySplit:1};
-  // Administration sheet
-  const dcols=[...DF.filter(f=>f.k!=="notes"),{k:"correct",l:"Steps correct",calc:1},{k:"assessed",l:"Steps assessed",calc:1},{k:"score",l:"Technique score (%)",calc:1},{k:"tech",l:"Technique (Good/Poor)",calc:1},{k:"notes",l:"Notes"},{k:"_by",l:"Data collector"}];
-  const wardOf=Object.fromEntries(patients.map(p=>[p.code,p.ward])),nameOf=Object.fromEntries(patients.map(p=>[p.code,p.name||""]));
-  dcols.splice(1,0,{k:"_ward",l:"Ward"});if(withNames)dcols.splice(1,0,{k:"_name",l:"Patient name"});
-  const da=[dcols.map(c=>c.l)];
-  for(const d of [...doses].sort((a,b)=>(a.code+a.date).localeCompare(b.code+b.date))){const c=calcD(d);da.push(dcols.map(f=>{
-    if(f.k==="_ward")return wardOf[d.code]||"";if(f.k==="_name")return nameOf[d.code]||"";if(f.k==="_by")return names[d.updatedBy]||names[d.createdBy]||"";
-    if(f.calc){const v=c[f.k];return v==null?"":v}
-    if(f.k==="date")return asDate(d.date);const v=d[f.k];return v==null?"":v}))}
-  const ws2=XLSX.utils.aoa_to_sheet(da);
-  const dateCol=dcols.findIndex(f=>f.k==="date");for(let r=1;r<da.length;r++){const a=XLSX.utils.encode_cell({r,c:dateCol});if(ws2[a]&&ws2[a].t==="n")ws2[a].z="dd/mm/yyyy";const s=XLSX.utils.encode_cell({r,c:dcols.findIndex(f=>f.k==="score")});if(ws2[s]&&ws2[s].t==="n")ws2[s].z="0%"}
-  ws2["!cols"]=dcols.map(c=>({wch:Math.min(26,Math.max(9,c.l.length*0.75))}));
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws1,"Patient Data");XLSX.utils.book_append_sheet(wb,ws2,"Administration");
+  XLSX.utils.book_append_sheet(wb,ws1,"Patient Data");
   const stamp=new Date().toISOString().slice(0,10);
-  try{XLSX.writeFile(wb,`Enoxaparin_study_${withNames?"with_names":"anonymised"}_${stamp}.xlsx`);toast(`Exported ${sorted.length} patients and ${doses.length} dose records`)}
+  try{XLSX.writeFile(wb,`Enoxaparin_study_${withNames?"with_names":"anonymised"}_${stamp}.xlsx`);toast(`Exported ${sorted.length} patients`)}
   catch(e){toast("Export failed: "+(e.message||e))}
 }
 
@@ -904,13 +862,13 @@ function showLogin(){
   patients=[];doses=[];renderPatients();renderDoses();netPill();
   if(channel){sb.removeChannel(channel);channel=null}
 }
-function setButtons(){$("newPatient").disabled=!canWrite;$("newDose").disabled=!canWrite}
+function setButtons(){$("newPatient").disabled=!canWrite}
 const NAMES_NOTE="Patient names are visible only to the study team. Use “Without names” when you export for analysis.";
 let gen=0,loaded=false;
 async function startApp(){
   const my=++gen;const stale=()=>my!==gen||!session;
   document.body.classList.remove("signed-out");$("v-login").hidden=true;
-  if($("v-patients").hidden&&$("v-doses").hidden&&$("v-summary").hidden&&$("v-editor").hidden&&$("v-dose-editor").hidden&&$("v-team").hidden)show("patients");
+  if($("v-patients").hidden&&$("v-summary").hidden&&$("v-editor").hidden&&$("v-team").hidden)show("patients");
   const email=(session.user.email||"").toLowerCase();me=email;loadLocal();
   const wasMember=LS.get(K("member"),false)===true;
   isOwner=LS.get(K("owner"),false)===true;$("tab-team").hidden=!isOwner;
@@ -1045,6 +1003,17 @@ $("signupForm").addEventListener("submit",async e=>{
   if(data&&data.session){session=data.session;$("signupForm").hidden=true;$("loginForm").hidden=false;startApp();return}
   er.className="ok";er.textContent="Account created. Open the confirmation email we sent you, then come back and sign in.";
 });
+
+// ---------- night mode ----------
+const MOON='<svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+const SUN='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+const mq=window.matchMedia?matchMedia("(prefers-color-scheme: dark)"):{matches:false,addEventListener(){}};
+const isDark=()=>{const t=document.documentElement.getAttribute("data-theme");return t?t==="dark":mq.matches};
+function paintTheme(){const d=isDark();$("themeBtn").innerHTML=d?SUN:MOON;$("themeBtn").title=$("themeBtn").ariaLabel=d?"Day mode":"Night mode";
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=d?"#0b1220":"#173f8a"}
+$("themeBtn").onclick=()=>{const t=isDark()?"light":"dark";document.documentElement.setAttribute("data-theme",t);try{localStorage.setItem("enox:theme",t)}catch(e){}paintTheme()};
+try{mq.addEventListener("change",paintTheme)}catch(e){}
+paintTheme();
 
 // ---------- installable app ----------
 let installEvt=null;
