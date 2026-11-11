@@ -186,6 +186,7 @@ body.editing .toast{bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 .sheet-card p{margin:0 0 4px;color:var(--muted);font-size:14px}
 
 /* sign-in */
+body:not(.is-owner) .owner-only{display:none!important}
 body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signed-out #signOut,body.signed-out #net{display:none}
 .net{appearance:none;border:0;font:800 12px var(--sans);padding:6px 10px;border-radius:999px;white-space:nowrap;cursor:pointer;background:rgba(255,255,255,.18);color:var(--on-brand);min-height:30px}
 .net.off{background:#ffd2c9;color:#6b1407}
@@ -207,7 +208,14 @@ body.signed-out main,body.signed-out .tabs,body.signed-out #exportBtn,body.signe
 .trow .who strong{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trow .who span,.trow .who small{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 button.btn.sm{min-height:40px;padding:0 14px;font-size:14px}
-.trow .acts{display:flex;gap:8px;flex:0 0 auto;margin-left:auto}
+.trow .acts{display:flex;gap:8px;flex:0 0 auto;margin-left:auto;align-items:center}
+.chip.fl{background:color-mix(in srgb,var(--s4) 16%,var(--surface));color:var(--s4)}
+select.flsel.need{border-color:var(--warn);color:var(--warn)}
+select.flsel{width:auto;min-height:40px;padding:6px 10px;font-size:14px;font-weight:700}
+.bar{grid-template-columns:1fr 1fr}
+.bar .search{grid-column:1/-1}
+#floorFilter[hidden]+#wardFilter{grid-column:1/2}
+@media (min-width:600px){.bar{grid-template-columns:1fr auto auto auto}.bar .search{grid-column:auto}}
 /* status filter */
 .stseg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--sunk);border-radius:14px;margin-bottom:12px}
 .stseg button{appearance:none;border:0;background:none;color:var(--muted);font:800 14px var(--sans);min-height:42px;border-radius:11px;cursor:pointer}
@@ -317,6 +325,9 @@ header button.btn.primary{background:var(--on-brand);border-color:var(--on-brand
     </div>
     <div class="bar">
       <input class="search" id="search" type="search" placeholder="Search name or code" aria-label="Search patients">
+      <select id="floorFilter" aria-label="Filter by floor" hidden>
+        <option value="">All floors</option><option value="2">Floor 2</option><option value="3">Floor 3</option><option value="4">Floor 4</option><option value="5">Floor 5</option><option value="-">No floor set</option>
+      </select>
       <select id="wardFilter" aria-label="Filter by ward">
         <option value="">All wards</option><option>General Surgery</option><option>Gynecology</option>
       </select>
@@ -352,7 +363,9 @@ header button.btn.primary{background:var(--on-brand);border-color:var(--on-brand
       <div class="card"><h3>Study team</h3><div id="memList"></div></div>
       <div class="card"><h3>Pre-approve a pharmacist</h3>
         <form class="addf" id="addForm" novalidate>
-          <div class="row"><input id="addEmail" type="email" inputmode="email" placeholder="colleague@email.com" aria-label="Email to approve"><button class="btn primary sm" id="addBtn" type="submit">Approve email</button></div>
+          <div class="row"><input id="addEmail" type="email" inputmode="email" placeholder="colleague@email.com" aria-label="Email to approve">
+            <select id="addFloor" class="flsel" aria-label="Floor"><option value="">Floor…</option><option value="2">Floor 2</option><option value="3">Floor 3</option><option value="4">Floor 4</option><option value="5">Floor 5</option></select>
+            <button class="btn primary sm" id="addBtn" type="submit">Approve email</button></div>
           <label class="ownerchk"><input id="addOwner" type="checkbox"> Also make them an owner (can approve others)</label>
           <span class="hint">When this person creates an account with this email, they get access straight away.</span>
         </form>
@@ -379,6 +392,7 @@ header button.btn.primary{background:var(--on-brand);border-color:var(--on-brand
 <script>window.supabase||document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"><\/script>')</script>
 <script>
 (function(){
+let isOwner=false,myFloor=null; // role of the signed-in person
 const YN=["Yes","No"], YNA=["Yes","No","N/A"];
 // Minimal schema: raw data only. Appropriateness is calculated by the app from the dosing rules.
 const REASONS=["Given despite contraindication","Unindicated (Caprini < 3)","No renal adjustment","Wrong frequency","Dose too high","Dose too low","Too close to surgery","Too close to spinal/epidural","First dose > 24 h after surgery"];
@@ -395,6 +409,7 @@ const P=[
  ["Patient",[
   {k:"name",l:"Patient name",t:"text",req:1,wide:1},
   {k:"ward",l:"Ward",t:"sel",o:["General Surgery","Gynecology"],req:1},
+  {k:"floor",l:"Floor",t:"sel",o:["2","3","4","5"],seg:1,req:1,ownerOnly:1},
   {k:"code",l:"Study code",t:"text",req:1,h:"Filled automatically from the ward"},
   {k:"age",l:"Age (years)",t:"num"},
   {k:"sex",l:"Sex",t:"sel",o:["Male","Female"]},
@@ -495,7 +510,7 @@ let toastT;function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;c
 function status(kind,msg,retry,label){const s=$("status");s.replaceChildren();if(!msg)return;const n=el("div",{class:"notice "+kind},el("span",{text:msg}));
   if(retry){const b=el("button",{class:"btn",type:"button",text:label||"Try again",style:"margin-left:10px;min-height:36px"});b.onclick=retry;n.append(b)}s.append(n)}
 
-const isSeg=f=>f.t==="sel"&&f.o&&f.o.length<=3;
+const isSeg=f=>f.t==="sel"&&f.o&&(f.o.length<=3||f.seg);
 const isChk=f=>f.t==="chk";
 function segField(id,opts){
   const g=el("div",{class:"seg",role:"radiogroup",id,"aria-labelledby":id+"_l"});
@@ -523,7 +538,7 @@ function buildForm(form,schema,prefix){
         else{input=el("input",{id,type:{num:"number",date:"date",dt:"datetime-local",time:"time",text:"text"}[f.t]||"text"});if(f.t==="num"){input.setAttribute("step","any");input.setAttribute("inputmode","decimal")}}
         lab=el("label",{for:id,text:f.l+(f.req?" *":"")});
       }
-      const wrap=el("div",{class:"f"+(f.calc?" calc":"")+(f.big?" big wide":"")+(f.wide||f.t==="area"?" wide":"")},lab,input);
+      const wrap=el("div",{class:"f"+(f.ownerOnly?" owner-only":"")+(f.calc?" calc":"")+(f.big?" big wide":"")+(f.wide||f.t==="area"?" wide":"")},lab,input);
       if(f.h)wrap.append(el("span",{class:"hint",text:f.h}));
       g.append(wrap);
     }
@@ -573,13 +588,13 @@ const dShort=iso=>{const d=new Date(iso);return isNaN(d)?"":d.toLocaleDateString
 function renderPatients(){
   $("nP").textContent=patients.length;
   const nDone=patients.filter(isDone).length;$("nDone").textContent=nDone;$("nAct").textContent=patients.length-nDone;
-  const q=$("search").value.trim().toLowerCase(),w=$("wardFilter").value;
-  const rows=patients.filter(p=>(stFilter==="done"?isDone(p):!isDone(p))&&(!w||p.ward===w)&&(!q||(p.code||"").toLowerCase().includes(q)||(p.name||"").toLowerCase().includes(q)))
+  const q=$("search").value.trim().toLowerCase(),w=$("wardFilter").value,fl=isOwner?$("floorFilter").value:"";
+  const rows=patients.filter(p=>(stFilter==="done"?isDone(p):!isDone(p))&&(!w||p.ward===w)&&(!fl||(fl==="-"?!p.floor:p.floor===fl))&&(!q||(p.code||"").toLowerCase().includes(q)||(p.name||"").toLowerCase().includes(q)))
     .sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||""));
   const box=$("pRows");box.replaceChildren();
   for(const p of rows){
     const c=calcP(p);
-    const meta=el("div",{class:"meta"},wardChip(p.ward),m("Rx",p.dose?`${p.dose} mg ${p.freq||""}`:"—"),m("CrCl",fmt(c.crcl)),m("Caprini",fmt(c.caprini)));
+    const meta=el("div",{class:"meta"},wardChip(p.ward),el("span",{class:"chip "+(p.floor?"fl":"warn"),text:p.floor?"Floor "+p.floor:"No floor"}),m("Rx",p.dose?`${p.dose} mg ${p.freq||""}`:"—"),m("CrCl",fmt(c.crcl)),m("Caprini",fmt(c.caprini)));
     if(isDone(p))meta.append(el("span",{class:"chip ok",text:"✓ Completed"+(p.completedAt?" "+dShort(p.completedAt):"")}));
     const by=names[p.updatedBy]||names[p.createdBy];if(by)meta.append(el("span",{text:"· "+by}));if(p.pending)meta.append(chip("Not uploaded"));
     const who=el("span",{class:"who"},el("span",{class:"pname",text:p.name||p.code}),el("span",{class:"code",text:p.code}));
@@ -592,7 +607,7 @@ function renderPatients(){
 }
 function setStatus(v){stFilter=v;$("stActive").setAttribute("aria-selected",String(v==="active"));$("stDone").setAttribute("aria-selected",String(v==="done"));renderPatients()}
 $("stActive").onclick=()=>setStatus("active");$("stDone").onclick=()=>setStatus("done");
-$("search").oninput=renderPatients;$("wardFilter").onchange=renderPatients;
+$("search").oninput=renderPatients;$("wardFilter").onchange=renderPatients;$("floorFilter").onchange=renderPatients;
 
 function renderDoses(){} // dose observation removed from the app
 
@@ -607,13 +622,15 @@ function updateRx(){
   if(c.reason){const d=el("div",{class:"why"},el("span",{text:"Why"}),el("b",{text:c.reason+(c.doseWhy&&c.expected?` (expected ${c.expected})`:"")}));rx.append(d)}
   prog(P,"p_",p);
 }
-function nextCode(ward){const pre=ward==="Gynecology"?"GY":"GS";let mx=0;patients.forEach(p=>{const mm=(p.code||"").match(new RegExp("^"+pre+"-(\\d+)$"));if(mm)mx=Math.max(mx,+mm[1])});return`${pre}-${String(mx+1).padStart(3,"0")}`}
+function nextCode(ward){const pre=ward==="Gynecology"?"GY":"GS";let mx=0;[...patients.map(p=>p.code),...((srv&&srv.codes)||[])].forEach(c=>{const mm=String(c||"").match(new RegExp("^"+pre+"-(\\d+)$"));if(mm)mx=Math.max(mx,+mm[1])});return`${pre}-${String(mx+1).padStart(3,"0")}`}
 function autoCode(){if(editing)return;const c=$("p_code"),w=document.querySelector('input[name="p_ward"]:checked');if(w&&(!c.value||c.dataset.auto==="1")){c.value=nextCode(w.value);c.dataset.auto="1"}}
 $("p_code").addEventListener("input",()=>{$("p_code").dataset.auto=""});
 $("pForm").addEventListener("input",updateRx);$("pForm").addEventListener("change",()=>{autoCode();updateRx()});
 function openPatient(p){
   editing=p||null;fillForm(PF,"p_",p);
   $("p_code").readOnly=!!p;$("p_code").dataset.auto=p?"":"1";
+  if(!isOwner&&myFloor)document.querySelectorAll('input[name="p_floor"]').forEach(r=>r.checked=r.value===String(myFloor));
+  else if(!p){const ff=$("floorFilter").value;if(ff&&ff!=="-")document.querySelectorAll('input[name="p_floor"]').forEach(r=>r.checked=r.value===ff)}
   $("edTitle").textContent=p?(p.name||p.code):"New patient";
   $("edMsg").textContent=canWrite?"Enter the data only. The result (appropriate or not) is calculated automatically from the dosing rules.":"Your email is not on the study team yet, so changes cannot be saved.";
   $("saveP").disabled=!canWrite;$("doneP").disabled=!canWrite;askDone(false);
@@ -650,12 +667,16 @@ const savedMsg=what=>navigator.onLine?`Saved ${what}`:`Saved ${what} on this pho
 function savePatient(extra,msg){
   const p=readForm(PF,"p_");
   if(!p.name||!p.ward||!p.code){toast("Patient name, ward and study code are required");return false}
+  if(!isOwner)p.floor=myFloor?String(myFloor):"";
   if(!session){toast("Sign in to save");return false}
-  const{code,ward,...rest}=p;
+  const{code,ward,floor,...rest}=p;
+  const fl=isOwner?n(floor):myFloor;
+  if(isOwner&&!fl){toast("Choose the patient's floor (2 to 5)");return false}
+  if(!isOwner&&!myFloor){toast("Your account has no floor yet. Ask the study owner to assign one.");return false}
   if(!editing&&patients.some(x=>x.code===code)){toast(`Study code ${code} is already used. Choose another.`);return false}
   const keep=editing?{completed:editing.completed||"",completedAt:editing.completedAt||""}:{};
   const id=editing?editing._id:uuid();
-  enqueue({op:"upsert",table:"patients",id,isNew:!editing,row:{code:editing?editing.code:code,ward,data:{...rest,...keep,...(extra||{})}}});
+  enqueue({op:"upsert",table:"patients",id,isNew:!editing,row:{code:editing?editing.code:code,ward,floor:fl,data:{...rest,...keep,...(extra||{})}}});
   toast(msg||savedMsg(p.name));show("patients");return true;
 }
 $("saveP").onclick=()=>savePatient();
@@ -665,7 +686,7 @@ const markDone=()=>{askDone(false);const nm=$("p_name").value.trim()||"Patient";
 $("doneP").onclick=()=>{
   if(editing&&isDone(editing)){const nm=editing.name||editing.code;savePatient({completed:"",completedAt:""},`${nm} moved back to In ward`);return}
   const p=readForm(PF,"p_");
-  const empty=PF.filter(f=>!f.calc&&!isChk(f)&&f.k!=="notes"&&!p[f.k]).map(f=>f.l);
+  const empty=PF.filter(f=>!f.calc&&!isChk(f)&&f.k!=="notes"&&!(f.ownerOnly&&!isOwner)&&!p[f.k]).map(f=>f.l);
   if(!empty.length){markDone();return}
   $("askMsg").textContent=`${empty.length} field${empty.length>1?"s are":" is"} still empty (${empty.slice(0,3).join(", ")}${empty.length>3?"…":""}). Complete anyway?`;
   askDone(true);
@@ -764,7 +785,7 @@ async function tabLock(name,acquireTimeout,fn){
 const sb=window.supabase?window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,lock:tabLock},global:{fetch:timedFetch}}):null;
 let session=null,channel=null,outP=null; // outP: pending sign-out; a new sign-in waits for it
 const who=e=>e?(names[e]||e.split("@")[0]):"";
-function rowP(r){return{...(r.data||{}),code:r.code,ward:r.ward,_id:r.id,createdBy:r.created_by_email,updatedBy:r.updated_by_email,updatedAt:r.updated_at,pending:!!r._pending}}
+function rowP(r){return{...(r.data||{}),code:r.code,ward:r.ward,floor:r.floor==null?"":String(r.floor),_id:r.id,createdBy:r.created_by_email,updatedBy:r.updated_by_email,updatedAt:r.updated_at,pending:!!r._pending}}
 function rowD(r){return{...(r.data||{}),code:r.patient_code,date:r.dose_date,_id:r.id,createdBy:r.created_by_email,updatedBy:r.updated_by_email,updatedAt:r.updated_at,pending:!!r._pending}}
 
 // ---------- offline store: a copy of the data and a queue of unsent changes, kept on this phone ----------
@@ -803,7 +824,8 @@ async function fetchServer(){
   const[a,b,t]=await Promise.all([sb.from("patients").select("*"),sb.from("doses").select("*"),sb.from("team_members").select("email,display_name")]);
   if(a.error)throw a.error;if(b.error)throw b.error;
   const nm={};(t.data||[]).forEach(m=>nm[m.email]=m.display_name||m.email.split("@")[0]);
-  srv={patients:a.data,doses:b.data,names:nm,at:Date.now()};
+  let codes=[];try{const tc=await sb.rpc("taken_codes");if(!tc.error)codes=(tc.data||[]).map(x=>typeof x==="string"?x:x.taken_codes||Object.values(x)[0])}catch(e){}
+  srv={patients:a.data,doses:b.data,names:nm,codes,at:Date.now()};
   if(!LS.set(K("cache"),srv))toast("This phone's storage is full. The offline copy could not be updated.");
 }
 async function loadAll(){await fetchServer();view()}
@@ -814,7 +836,7 @@ async function runOp(op){
   if(op.op==="upsert"&&(!r.data||!r.data.length))throw{code:"42501",message:"row-level security"};
 }
 async function recode(op){ // a colleague used the same study code while this phone was offline
-  const{data,error}=await sb.from("patients").select("code");if(error)return false;
+  const tc=await sb.rpc("taken_codes");if(tc.error)return false;const data=(tc.data||[]).map(x=>({code:typeof x==="string"?x:Object.values(x)[0]}));
   const pre=(String(op.row.code).match(/^([A-Za-z]+)-/)||[0,"GS"])[1],re=new RegExp("^"+pre+"-(\\d+)$");let mx=0;
   for(const r of data){const m=String(r.code||"").match(re);if(m)mx=Math.max(mx,+m[1])}
   for(const o of outbox){const m=String((o.row||{}).code||"").match(re);if(m&&o!==op)mx=Math.max(mx,+m[1])}
@@ -857,12 +879,15 @@ const ago=t=>{const m=Math.round((Date.now()-t)/60000);return m<1?"just now":m<6
 let reloadT;function scheduleReload(){clearTimeout(reloadT);reloadT=setTimeout(()=>loadAll().catch(()=>{}),500)}
 function showLogin(){
   document.body.classList.add("signed-out");document.body.classList.remove("editing");$("v-login").hidden=false;
-  isOwner=false;$("tab-team").hidden=true;$("signupForm").hidden=true;$("loginForm").hidden=false;
+  isOwner=false;document.body.classList.remove("is-owner");$("tab-team").hidden=true;$("signupForm").hidden=true;$("loginForm").hidden=false;
   $("lgBtn").disabled=false;$("lgBtn").textContent="Sign in";status("");
   patients=[];doses=[];renderPatients();renderDoses();netPill();
   if(channel){sb.removeChannel(channel);channel=null}
 }
-function setButtons(){$("newPatient").disabled=!canWrite}
+function setButtons(){$("newPatient").disabled=!canWrite||(!isOwner&&!myFloor)}
+function whoLine(email){return `${who(email)} · ${isOwner?"all floors":myFloor?"Floor "+myFloor:"no floor yet"}`}
+function applyRole(){document.body.classList.toggle("is-owner",!!isOwner);$("floorFilter").hidden=!isOwner;
+  $("newPatient").disabled=!canWrite||(!isOwner&&!myFloor)}
 const NAMES_NOTE="Patient names are visible only to the study team. Use “Without names” when you export for analysis.";
 let gen=0,loaded=false;
 async function startApp(){
@@ -871,9 +896,9 @@ async function startApp(){
   if($("v-patients").hidden&&$("v-summary").hidden&&$("v-editor").hidden&&$("v-team").hidden)show("patients");
   const email=(session.user.email||"").toLowerCase();me=email;loadLocal();
   const wasMember=LS.get(K("member"),false)===true;
-  isOwner=LS.get(K("owner"),false)===true;$("tab-team").hidden=!isOwner;
+  isOwner=LS.get(K("owner"),false)===true;$("tab-team").hidden=!isOwner;myFloor=LS.get(K("floor"),null);applyRole();
   if(wasMember){canWrite=true;setButtons();view()} // open instantly from the copy on this phone
-  $("whoami").textContent=`Signed in as ${who(email)}`;netPill();
+  $("whoami").textContent=whoLine(email);netPill();
   if(!navigator.onLine&&wasMember){loaded=true;status("warn",`You're offline. Showing the copy saved on this phone${srv.at?` (updated ${ago(srv.at)})`:""}. New entries are saved here and upload automatically.`);return}
   status("info",srv.at?"Updating…":"Loading study data…");
   try{
@@ -887,12 +912,14 @@ async function startApp(){
       if(stale())return;
       status("warn",`Your account (${email}) is waiting for approval by the study owner. You'll get access as soon as it's approved.`,()=>startApp(),"Check again");return}
     try{const o=await withTimeout(sb.rpc("is_owner"),10000);isOwner=!o.error&&o.data===true}catch(e){}
+    try{const fr=await withTimeout(sb.rpc("my_floor"),10000);myFloor=fr.error||fr.data==null?null:Number(fr.data)}catch(e){}
     if(stale())return;
-    LS.set(K("owner"),isOwner);$("tab-team").hidden=!isOwner;if(isOwner)loadTeam().catch(()=>{});
+    LS.set(K("owner"),isOwner);LS.set(K("floor"),myFloor);applyRole();$("tab-team").hidden=!isOwner;if(isOwner)loadTeam().catch(()=>{});
     await withTimeout(fetchServer(),25000);
     if(stale())return;
-    view();loaded=true;$("whoami").textContent=`Signed in as ${who(email)}`;
-    status("info",NAMES_NOTE);
+    view();loaded=true;$("whoami").textContent=whoLine(email);
+    if(!isOwner&&!myFloor)status("warn","Your account has no floor yet. Ask the study owner to assign you to a floor (2 to 5) in the Team tab.",()=>startApp(),"Check again");
+    else status("info",NAMES_NOTE);
     if(!channel){channel=sb.channel("study").on("postgres_changes",{event:"*",schema:"public",table:"patients"},scheduleReload).on("postgres_changes",{event:"*",schema:"public",table:"doses"},scheduleReload).subscribe()}
     sync();
   }catch(e){
@@ -926,7 +953,7 @@ else{
   });
   function doSignOut(){
     gen++;
-    LS.del(K("cache"));LS.del(K("member"));LS.del(K("owner"));LS.del(K("outbox"));LS.del(K("failed"));outbox=[];failed=[];srv={patients:[],doses:[],names:{},at:0};
+    LS.del(K("cache"));LS.del(K("member"));LS.del(K("owner"));LS.del(K("floor"));myFloor=null;LS.del(K("outbox"));LS.del(K("failed"));outbox=[];failed=[];srv={patients:[],doses:[],names:{},at:0};
     session=null;loaded=false;canWrite=false;showLogin();$("whoami").textContent="General Surgery & Gynecology · pharmacist data collection";
     outP=withTimeout(sb.auth.signOut({scope:"local"}),5000).catch(()=>{}).then(()=>{try{for(const k of Object.keys(localStorage))if(k.startsWith("sb-"))localStorage.removeItem(k)}catch(e){}}).finally(()=>{outP=null});
   }
@@ -941,7 +968,7 @@ else{
 }
 
 // ---------- team (owners only) ----------
-let isOwner=false,team={reqs:[],mems:[]};
+let team={reqs:[],mems:[]};
 async function loadTeam(){
   const[a,b]=await Promise.all([sb.from("access_requests").select("*").order("requested_at"),sb.from("team_members").select("*").order("added_at")]);
   if(a.error)throw a.error;if(b.error)throw b.error;
@@ -949,20 +976,24 @@ async function loadTeam(){
   for(const m of b.data)names[m.email]=m.display_name||m.email.split("@")[0];
   $("nT").textContent=team.reqs.length;$("nT").hidden=!team.reqs.length;renderTeam();
 }
+function floorSel(val,withNone){const s=el("select",{class:"flsel","aria-label":"Floor"});
+  if(withNone)s.append(el("option",{value:"",text:"Floor…"}));for(const v of["2","3","4","5"])s.append(el("option",{value:v,text:"Floor "+v}));s.value=val==null?"":String(val);return s}
 function renderTeam(){
   const rl=$("reqList");rl.replaceChildren();
   if(!team.reqs.length)rl.append(el("p",{class:"tnote",text:"No one is waiting. New accounts appear here for you to approve."}));
   for(const r of team.reqs){
-    const ap=el("button",{class:"btn primary sm",type:"button",text:"Approve"}),rj=el("button",{class:"btn ghost sm",type:"button",text:"Reject"});
-    ap.onclick=()=>teamAct(ap,"approve_member",{p_email:r.email,p_owner:false},`${r.display_name||r.email} can now use the app`);
+    const ap=el("button",{class:"btn primary sm",type:"button",text:"Approve"}),rj=el("button",{class:"btn ghost sm",type:"button",text:"Reject"}),fs=floorSel(null,true);
+    ap.onclick=()=>{if(!fs.value){toast("Choose a floor first");fs.focus();return}teamAct(ap,"approve_member",{p_email:r.email,p_owner:false,p_floor:+fs.value},`${r.display_name||r.email} can now use the app on Floor ${fs.value}`)};
     rj.onclick=()=>{if(rj.dataset.sure)teamAct(rj,"reject_request",{p_email:r.email},"Request rejected");else{rj.dataset.sure="1";rj.textContent="Tap again to reject";rj.classList.add("danger")}};
-    rl.append(el("div",{class:"trow"},el("div",{class:"who"},el("strong",{text:r.display_name||"(no name given)"}),el("span",{text:r.email}),el("small",{text:"Asked "+ago(Date.parse(r.requested_at))})),el("div",{class:"acts"},rj,ap)));
+    rl.append(el("div",{class:"trow"},el("div",{class:"who"},el("strong",{text:r.display_name||"(no name given)"}),el("span",{text:r.email}),el("small",{text:"Asked "+ago(Date.parse(r.requested_at))})),el("div",{class:"acts"},rj,fs,ap)));
   }
   const ml=$("memList");ml.replaceChildren();
   for(const m of team.mems){
     const self=m.email===me;
     const row=el("div",{class:"trow"},el("div",{class:"who"},el("strong",{text:(m.display_name||m.email.split("@")[0])+(self?" (you)":"")}),el("span",{text:m.email})),
-      el("span",{class:"chip "+(m.role==="owner"?"gs":"inc"),text:m.role==="owner"?"Owner":"Pharmacist"}));
+      el("span",{class:"chip "+(m.role==="owner"?"gs":"inc"),text:m.role==="owner"?"Owner · all floors":"Pharmacist"}));
+    if(m.role!=="owner"){const fs=floorSel(m.floor,m.floor==null);if(m.floor==null)fs.classList.add("need");
+      fs.onchange=()=>{if(fs.value)teamAct(fs,"set_member_floor",{p_email:m.email,p_floor:+fs.value},`${m.display_name||m.email} moved to Floor ${fs.value}`)};row.append(fs)}
     if(!self){const rm=el("button",{class:"btn ghost sm",type:"button",text:"Remove"});
       rm.onclick=()=>{if(rm.dataset.sure)teamAct(rm,"remove_member",{p_email:m.email},"Removed from the team");else{rm.dataset.sure="1";rm.textContent="Tap again to remove";rm.classList.add("danger")}};row.append(rm)}
     ml.append(row);
@@ -977,7 +1008,9 @@ async function teamAct(btn,fn,args,okMsg){
 $("addForm").addEventListener("submit",async e=>{
   e.preventDefault();const em=$("addEmail").value.trim().toLowerCase();
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast("Enter a valid email address");return}
-  if(await teamAct($("addBtn"),"approve_member",{p_email:em,p_owner:$("addOwner").checked},`${em} is approved. They can now create their account.`)){$("addEmail").value="";$("addOwner").checked=false;$("addBtn").disabled=false}
+  const own=$("addOwner").checked,flv=$("addFloor").value;
+  if(!own&&!flv){toast("Choose the floor this pharmacist will work on");$("addFloor").focus();return}
+  if(await teamAct($("addBtn"),"approve_member",{p_email:em,p_owner:own,p_floor:own?null:+flv},`${em} is approved${own?" as an owner":" for Floor "+flv}. They can now create their account.`)){$("addEmail").value="";$("addOwner").checked=false;$("addFloor").value="";$("addBtn").disabled=false}
 });
 $("tab-team").onclick=()=>{show("team");renderTeam();if(navigator.onLine)loadTeam().catch(e=>toast(errText(e)));else toast("You're offline. Team changes need internet.")};
 

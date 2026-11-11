@@ -47,6 +47,14 @@ How offline works:
 - **Removing someone:** owners can remove members in the Team tab. Removing yourself is blocked.
 - **Enforcement:** all of this is enforced in the database by row-level security and owner-only functions, not just hidden in the app.
 
+## Floors
+
+- Every pharmacist works on **one floor (2, 3, 4 or 5)**. Owners see all floors.
+- **Approving:** when an owner approves a new account in the Team tab, they must choose its floor. Owners can move a pharmacist to another floor at any time using the floor menu next to their name.
+- **What pharmacists see:** a pharmacist sees and edits **only the patients on their own floor**. Patients they add are saved on their floor automatically, and the database enforces this even if the app sent something else.
+- **What owners see:** owners get a *Floor* field in the patient form and a floor filter in the patient list. Patients created before floors existed show "No floor" until an owner sets one.
+- **Study codes** (GS-001, GY-001…) stay unique across all floors.
+
 ## Adding a pharmacist (dashboard alternative)
 
 Do both steps in the Supabase dashboard:
